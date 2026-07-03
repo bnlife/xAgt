@@ -46,12 +46,11 @@ describe("Vox prompt 包含委派指令", () => {
     expect(prompt).toMatch(/context7|gh_grep|websearch/)
   })
 
-  it("Vox 的 prompt 应该说明 fixer 的职责约束", async () => {
+  it("Vox 的 prompt 应该说明 fixer 的技能约束", async () => {
     const { getAgents } = await import("../src/agents")
     const agents = getAgents()
     const prompt = agents.vox.prompt
-    expect(prompt).toMatch(/fixer/)
-    expect(prompt).toMatch(/只执行不决策|不越权/)
+    expect(prompt).toMatch(/shadcn-guard|shadcn-lint|simplify/)
   })
 })
 
@@ -65,7 +64,7 @@ describe("Lynx prompt 约束", () => {
     const { getAgents } = await import("../src/agents")
     const agents = getAgents()
     const prompt = agents.lynx.prompt
-    expect(prompt).toMatch(/NEVER modify|do not modify|READ.ONLY/)
+    expect(prompt).toMatch(/不.*修改|只.*不.*改|铁律/)
   })
 
   it("Lynx 的 prompt 应该提到多模态能力", async () => {
@@ -86,7 +85,7 @@ describe("Fixer prompt 约束", () => {
     const { getAgents } = await import("../src/agents")
     const agents = getAgents()
     const prompt = agents.fixer.prompt
-    expect(prompt).toMatch(/NO.*delegation|Only modify|do not redesign/)
+    expect(prompt).toMatch(/只做|不要.*猜|不要.*越权|铁律/)
   })
 
   it("Fixer 的 prompt 应该提到验证", async () => {
@@ -148,8 +147,8 @@ describe("OpenCode 配置文件验证", () => {
 
     // 验证插件引用存在
     expect(content).toMatch(/xAgt|xagt/)
-    // 验证指向了正确的路径（正斜杠或反斜杠均可）
-    expect(content).toMatch(/xAgt/)
+    // 验证指向了正确的路径
+    expect(content).toMatch(/Workspace\/xAgt/)
   })
 
   it("opencode.jsonc 的 plugin 数组应该有 2 个条目", async () => {

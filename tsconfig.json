@@ -8,9 +8,7 @@
     "skipLibCheck": true,
     "declaration": true,
     "outDir": "./dist",
-    "rootDir": "./src",
-    "jsx": "react-jsx",
-    "jsxImportSource": "@opentui/solid"
+    "rootDir": "./src"
   },
   "include": ["src"]
 }

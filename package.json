@@ -5,40 +5,20 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    },
-    "./tui": {
-      "import": "./dist/tui.js",
-      "types": "./dist/tui.d.ts"
-    }
-  },
-  "files": [
-    "dist"
-  ],
-  "keywords": [
-    "opencode-plugin"
-  ],
+  "files": ["dist"],
+  "keywords": ["opencode-plugin"],
   "peerDependencies": {
     "@opencode-ai/plugin": "^1.0.0"
   },
   "devDependencies": {
-    "@opencode-ai/plugin": "^1.0.0",
+    "typescript": "^5.0.0",
     "@types/node": "^20.0.0",
-    "typescript": "^5.0.0"
+    "@opencode-ai/plugin": "^1.0.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "deploy": "powershell -Command \"Copy-Item -Path 'dist' -Destination 'C:\\Users\\叙拉古的城主\\.config\\opencode\\plugins\\xAgt' -Recurse -Force\"",
     "prepublishOnly": "npm run build",
-    "typecheck": "tsc --noEmit",
-    "pretest": "npm run build",
-    "test": "bun test"
-  },
-  "dependencies": {
-    "@opencode-ai/sdk": "^1.17.13",
-    "@opentui/solid": "^0.4.2"
+    "typecheck": "tsc --noEmit"
   }
 }

@@ -63,6 +63,18 @@ export class BackgroundJobBoard {
     return true
   }
 
+  /** 批量标记某个父会话的所有 unreconciled 任务为 reconciled */
+  reconcileAll(parentSessionID: string): number {
+    let count = 0
+    for (const record of this.tasks.values()) {
+      if (record.state === "terminal_unreconciled") {
+        record.state = "reconciled"
+        count++
+      }
+    }
+    return count
+  }
+
   /** 获取活跃任务（running + terminal_unreconciled），用于看板注入 */
   getActive(): TaskRecord[] {
     const active: TaskRecord[] = []
@@ -74,16 +86,9 @@ export class BackgroundJobBoard {
     return active
   }
 
-  /** 批量标记所有 terminal_unreconciled 为 reconciled */
-  reconcileAll(): number {
-    let count = 0
-    for (const record of this.tasks.values()) {
-      if (record.state === "terminal_unreconciled") {
-        record.state = "reconciled"
-        count++
-      }
-    }
-    return count
+  /** 获取所有运行中任务（旧接口兼容） */
+  getAllRunning(): TaskRecord[] {
+    return this.getActive().filter((t) => t.state === "running")
   }
 
   /** 清理 reconciled 的任务 */

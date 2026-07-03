@@ -127,14 +127,13 @@ describe("Agent prompt 完整性", () => {
     const prompt = getAgents().vox.prompt
 
     const checks = [
-      "Role",
-      "Workflow",
-      "Delegation",
-      "Communication",
+      "核心原则",
+      "职责",
+      "专家 Agent",
       "@lynx",
       "@fixer",
-      "三振出局",
-      "后台任务看板",
+      "工作流程",
+      "重要规则",
     ]
     for (const check of checks) {
       expect(prompt).toMatch(new RegExp(check, "i"))
@@ -146,10 +145,11 @@ describe("Agent prompt 完整性", () => {
     const prompt = getAgents().lynx.prompt
 
     const checks = [
-      "reconnaissance",
-      "context7",
-      "gh_grep",
-      "NEVER modify",
+      "定位",
+      "能力",
+      "MCP",
+      "工作方式",
+      "铁律",
     ]
     for (const check of checks) {
       expect(prompt).toMatch(new RegExp(check, "i"))
@@ -161,12 +161,12 @@ describe("Agent prompt 完整性", () => {
     const prompt = getAgents().fixer.prompt
 
     const checks = [
-      "implementation specialist",
-      "read",
-      "edit",
-      "write",
-      "bash",
-      "NO research",
+      "定位",
+      "职责",
+      "工具",
+      "技能",
+      "工作方式",
+      "铁律",
     ]
     for (const check of checks) {
       expect(prompt).toMatch(new RegExp(check, "i"))
@@ -177,11 +177,11 @@ describe("Agent prompt 完整性", () => {
     const { getAgents } = await import("../src/agents")
     const agents = getAgents()
     for (const [name, agent] of Object.entries(agents)) {
-      // prompt 应该在 200-10000 字之间
+      // prompt 应该在 500-5000 字之间
       expect(
         agent.prompt.length,
         `${name} 的 prompt 长度 ${agent.prompt.length} 不合理`
-      ).toBeGreaterThan(200)
+      ).toBeGreaterThan(500)
       expect(
         agent.prompt.length,
         `${name} 的 prompt 长度 ${agent.prompt.length} 不合理`

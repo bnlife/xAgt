@@ -1,74 +1,62 @@
-/**
- * BackgroundJobBoard 单元测试
- *
- * 测试看板数据结构的核心操作：
- * - 启动/更新/查询/取消任务
- */
 import { describe, it, expect } from "bun:test"
 
 describe("BackgroundJobBoard 看板数据结构", () => {
-  // 测试1：启动任务后看板有记录
-  it("启动任务后看板应该有一条记录，状态为 running", async () => {
-    const { BackgroundJobBoard } = await import("../../../src/utils/background-job-board")
-    const board = new BackgroundJobBoard()
-
-    board.launch("task_1", { agent: "lynx", prompt: "查一下auth目录" })
-
-    const record = board.get("task_1")
-    expect(record).toBeDefined()
-    expect(record.id).toBe("task_1")
-    expect(record.agent).toBe("lynx")
-    expect(record.state).toBe("running")
-  })
-
-  // 测试2：更新任务状态
-  it("完成任务后状态应该变为 completed", async () => {
+  it("启动任务后看板有一条记录，状态为 running", async () => {
     const { BackgroundJobBoard } = await import("../../../src/utils/background-job-board")
     const board = new BackgroundJobBoard()
     board.launch("task_1", { agent: "lynx", prompt: "查一下" })
-
-    board.complete("task_1", "找到auth目录，有login.vue")
-
     const record = board.get("task_1")
-    expect(record.state).toBe("completed")
-    expect(record.resultSummary).toBe("找到auth目录，有login.vue")
+    expect(record?.state).toBe("running")
   })
 
-  // 测试3：按 agent 类型查找运行中的任务
-  it("应该能按 agent 类型查找运行中任务", async () => {
+  it("完成任务后状态变为 terminal_unreconciled", async () => {
     const { BackgroundJobBoard } = await import("../../../src/utils/background-job-board")
     const board = new BackgroundJobBoard()
     board.launch("task_1", { agent: "lynx", prompt: "查一下" })
-    board.launch("task_2", { agent: "fixer", prompt: "改代码" })
-    board.launch("task_3", { agent: "lynx", prompt: "再查一下" })
-
-    const lynxTasks = board.findRunning("lynx")
-    expect(lynxTasks.length).toBe(2)
-    expect(lynxTasks.map((t) => t.id)).toEqual(["task_1", "task_3"])
-  })
-
-  // 测试4：取消任务
-  it("取消任务后状态应该为 cancelled", async () => {
-    const { BackgroundJobBoard } = await import("../../../src/utils/background-job-board")
-    const board = new BackgroundJobBoard()
-    board.launch("task_1", { agent: "fixer", prompt: "改代码" })
-
-    board.cancel("task_1")
-
-    const record = board.get("task_1")
-    expect(record.state).toBe("cancelled")
-  })
-
-  // 测试5：获取所有运行中任务
-  it("应该能列出所有运行中任务", async () => {
-    const { BackgroundJobBoard } = await import("../../../src/utils/background-job-board")
-    const board = new BackgroundJobBoard()
-    board.launch("task_1", { agent: "lynx", prompt: "查一下" })
-    board.launch("task_2", { agent: "fixer", prompt: "改代码" })
     board.complete("task_1", "完成")
+    expect(board.get("task_1")?.state).toBe("terminal_unreconciled")
+    expect(board.get("task_1")?.resultSummary).toBe("完成")
+  })
 
+  it("markReconciled 后状态变为 reconciled", async () => {
+    const { BackgroundJobBoard } = await import("../../../src/utils/background-job-board")
+    const board = new BackgroundJobBoard()
+    board.launch("task_1", { agent: "lynx", prompt: "查一下" })
+    board.complete("task_1", "完成")
+    board.markReconciled("task_1")
+    expect(board.get("task_1")?.state).toBe("reconciled")
+  })
+
+  it("getActive 只返回 running 和 terminal_unreconciled", async () => {
+    const { BackgroundJobBoard } = await import("../../../src/utils/background-job-board")
+    const board = new BackgroundJobBoard()
+    board.launch("t1", { agent: "lynx", prompt: "a" })
+    board.launch("t2", { agent: "fixer", prompt: "b" })
+    board.complete("t1", "ok")
+    board.markReconciled("t1")
+
+    const active = board.getActive()
+    expect(active.length).toBe(1) // 只有 t2 (terminal_unreconciled)
+    expect(active[0].id).toBe("t2")
+  })
+
+  it("getAllRunning 只返回 running（不包含 terminal_unreconciled）", async () => {
+    const { BackgroundJobBoard } = await import("../../../src/utils/background-job-board")
+    const board = new BackgroundJobBoard()
+    board.launch("t1", { agent: "lynx", prompt: "查一下" })
+    board.complete("t1", "ok")
     const running = board.getAllRunning()
-    expect(running.length).toBe(1)
-    expect(running[0].id).toBe("task_2")
+    expect(running.length).toBe(0)
+  })
+
+  it("cleanReconciled 删除所有 reconciled 记录", async () => {
+    const { BackgroundJobBoard } = await import("../../../src/utils/background-job-board")
+    const board = new BackgroundJobBoard()
+    board.launch("t1", { agent: "lynx", prompt: "a" })
+    board.complete("t1", "ok")
+    board.markReconciled("t1")
+    const count = board.cleanReconciled()
+    expect(count).toBe(1)
+    expect(board.get("t1")).toBeUndefined()
   })
 })

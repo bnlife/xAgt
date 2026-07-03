@@ -13,6 +13,7 @@ export const xAgt: Plugin = async (ctx) => {
     "tool.execute.before": taskManager["tool.execute.before"],
     "tool.execute.after": taskManager["tool.execute.after"],
     "experimental.chat.messages.transform": taskManager["experimental.chat.messages.transform"],
+    event: taskManager.event,
 
     config: async (config: any) => {
       (config as any).agent = (config as any).agent || {}

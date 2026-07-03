@@ -1,13 +1,20 @@
+import type { Hooks } from "@opencode-ai/plugin"
+import type { Part } from "@opencode-ai/sdk"
 import { BackgroundJobBoard } from "../../utils/background-job-board"
 
 const BOARD_SENTINEL = "SENTINEL: background-job-board-v1"
 
+type ToolExecuteBeforeHandler = NonNullable<Hooks["tool.execute.before"]>
+type ToolExecuteAfterHandler = NonNullable<Hooks["tool.execute.after"]>
+type MessagesTransformHandler = NonNullable<Hooks["experimental.chat.messages.transform"]>
+type EventHandler = NonNullable<Hooks["event"]>
+
 export interface TaskManagerHook {
   getBoard(): BackgroundJobBoard
-  "tool.execute.before": (input: { tool: string; sessionID: string; callID: string }, output: { args: any }) => Promise<void>
-  "tool.execute.after": (input: { tool: string; sessionID: string; callID: string; args: any }, output: { title: string; output: string; metadata: any }) => Promise<void>
-  "experimental.chat.messages.transform": (input: {}, output: { messages: Array<{ info: { role: string }; parts: Array<{ type: string; text: string }> }> }) => Promise<void>
-  event: (input: { event: { type: string; properties?: any } }) => Promise<void>
+  "tool.execute.before": ToolExecuteBeforeHandler
+  "tool.execute.after": ToolExecuteAfterHandler
+  "experimental.chat.messages.transform": MessagesTransformHandler
+  event: EventHandler
 }
 
 export function createTaskManagerHook(): TaskManagerHook {
@@ -17,57 +24,74 @@ export function createTaskManagerHook(): TaskManagerHook {
     getBoard: () => board,
 
     "tool.execute.before": async (input, output) => {
-      if (input.tool !== "task") return
-      const args = output.args as { subagent_type?: string; prompt?: string }
-      board.launch(input.callID, {
-        agent: args.subagent_type ?? "unknown",
-        prompt: args.prompt ?? "",
-      })
+      try {
+        if (input.tool !== "task") return
+        const args = output.args as { subagent_type?: string; prompt?: string }
+        board.launch(input.callID, {
+          agent: args.subagent_type ?? "unknown",
+          prompt: args.prompt ?? "",
+        })
+      } catch (err) {
+        console.error("[xAgt] tool.execute.before 错误:", err)
+      }
     },
 
     "tool.execute.after": async (input, output) => {
-      if (input.tool !== "task") return
-      const completed = output.title?.startsWith("Background task completed")
-      const failed = output.title?.startsWith("Background task failed")
-      if (completed) {
-        board.complete(input.callID, output.output)
-      } else if (failed) {
-        board.fail(input.callID, output.output)
+      try {
+        if (input.tool !== "task") return
+        const completed = output.title?.startsWith("Background task completed")
+        const failed = output.title?.startsWith("Background task failed")
+        if (completed) {
+          board.complete(input.callID, output.output)
+        } else if (failed) {
+          board.fail(input.callID, output.output)
+        }
+      } catch (err) {
+        console.error("[xAgt] tool.execute.after 错误:", err)
       }
     },
 
     "experimental.chat.messages.transform": async (_input, output) => {
-      const active = board.getActive()
-      if (active.length === 0) return
+      try {
+        const active = board.getActive()
+        if (active.length === 0) return
 
-      // 检查最新一条用户消息是否已含 sentinel，避免同一轮重复注入
-      const lastMsg = output.messages[output.messages.length - 1]
-      if (!lastMsg) return
-      for (const part of lastMsg.parts) {
-        if (part.type === "text" && part.text?.includes(BOARD_SENTINEL)) return
+        // 检查最新一条用户消息是否已含 sentinel，避免同一轮重复注入
+        const lastMsg = output.messages[output.messages.length - 1]
+        if (!lastMsg) return
+
+        // 只向用户消息注入看板，不向助手消息注入
+        if (lastMsg.info?.role !== "user") return
+
+        for (const part of lastMsg.parts) {
+          if (part.type === "text" && part.text?.includes(BOARD_SENTINEL)) return
+        }
+
+        const summary = active
+          .map((t) => {
+            const state = t.state === "running" ? "运行中" : "已完成"
+            const brief = t.prompt.slice(0, 40)
+            return `- @${t.agent} [${state}]: ${brief}${t.prompt.length > 40 ? "..." : ""}`
+          })
+          .join("\n")
+
+        lastMsg.parts.push({
+          type: "text",
+          text: `## 后台任务看板\n${summary}\n${BOARD_SENTINEL}`,
+        } as Part)
+      } catch (err) {
+        console.error("[xAgt] experimental.chat.messages.transform 错误:", err)
       }
-
-      const summary = active
-        .map((t) => {
-          const state = t.state === "running" ? "运行中" : "已完成"
-          const brief = t.prompt.slice(0, 40)
-          return `- @${t.agent} [${state}]: ${brief}${t.prompt.length > 40 ? "..." : ""}`
-        })
-        .join("\n")
-
-      lastMsg.parts.push({
-        type: "text",
-        text: `## 后台任务看板\n${summary}\n${BOARD_SENTINEL}`,
-      })
     },
 
     event: async (input) => {
-      // session idle 或 status 变化时，自动归档已注入过的完成任务
-      if (input.event.type === "session.idle" || input.event.type === "session.status") {
-        const count = board.reconcileAll("")
-        if (count > 0) {
+      try {
+        if (input.event.type === "session.idle" || input.event.type === "session.status") {
+          board.reconcileAll()
           board.cleanReconciled()
         }
+      } catch (err) {
+        console.error("[xAgt] event 错误:", err)
       }
     },
   }

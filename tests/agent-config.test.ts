@@ -127,13 +127,27 @@ describe("Agent prompt 完整性", () => {
     const prompt = getAgents().vox.prompt
 
     const checks = [
-      "核心原则",
-      "职责",
-      "专家 Agent",
+      "Role",
+      "Workflow",
+      "Delegation",
+      "Skills",
+      "Communication",
+      "IronLaws",
+      "S1",
+      "S2",
+      "S3",
+      "S4",
+      "S5",
+      "S6",
+      "S7",
+      "三振出局",
       "@lynx",
       "@fixer",
-      "工作流程",
-      "重要规则",
+      "铁律1",
+      "铁律2",
+      "铁律3",
+      "铁律4",
+      "铁律5",
     ]
     for (const check of checks) {
       expect(prompt).toMatch(new RegExp(check, "i"))
@@ -150,6 +164,10 @@ describe("Agent prompt 完整性", () => {
       "MCP",
       "工作方式",
       "铁律",
+      "只做安排",
+      "绝不修改",
+      "如实汇报",
+      "不越权",
     ]
     for (const check of checks) {
       expect(prompt).toMatch(new RegExp(check, "i"))
@@ -167,6 +185,10 @@ describe("Agent prompt 完整性", () => {
       "技能",
       "工作方式",
       "铁律",
+      "只做安排",
+      "禁止自作主张",
+      "精确执行",
+      "不越权",
     ]
     for (const check of checks) {
       expect(prompt).toMatch(new RegExp(check, "i"))
@@ -177,16 +199,43 @@ describe("Agent prompt 完整性", () => {
     const { getAgents } = await import("../src/agents")
     const agents = getAgents()
     for (const [name, agent] of Object.entries(agents)) {
-      // prompt 应该在 500-5000 字之间
+      // Vox 完整版更长（2000-6000），Lynx/Fixer 在 800-3000
+      const minLength = name === "vox" ? 2000 : 800
+      const maxLength = name === "vox" ? 6000 : 3000
       expect(
         agent.prompt.length,
         `${name} 的 prompt 长度 ${agent.prompt.length} 不合理`
-      ).toBeGreaterThan(500)
+      ).toBeGreaterThan(minLength)
       expect(
         agent.prompt.length,
         `${name} 的 prompt 长度 ${agent.prompt.length} 不合理`
-      ).toBeLessThan(10000)
+      ).toBeLessThan(maxLength)
     }
+  })
+})
+
+// =========================================
+// 测试 6：思考模式配置验证
+// 模拟用户：查看 Agent 的思考模式设置
+// 期望：思考强度符合预期
+// =========================================
+describe("Agent 思考模式配置", () => {
+  it("Vox 的思考强度应该为 max", async () => {
+    const { getAgents } = await import("../src/agents")
+    const vox = getAgents().vox
+    expect(vox.options?.reasoning_effort).toBe("max")
+  })
+
+  it("Lynx 的思考模式应该关闭", async () => {
+    const { getAgents } = await import("../src/agents")
+    const lynx = getAgents().lynx
+    expect(lynx.options?.thinking?.type).toBe("disabled")
+  })
+
+  it("Fixer 的思考强度应该为 high", async () => {
+    const { getAgents } = await import("../src/agents")
+    const fixer = getAgents().fixer
+    expect(fixer.options?.reasoning_effort).toBe("high")
   })
 })
 

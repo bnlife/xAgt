@@ -197,3 +197,26 @@ describe("OpenCode 配置文件验证", () => {
     expect(pluginMatches!.length).toBeGreaterThanOrEqual(2)
   })
 })
+
+// =========================================
+// M4 异步编排：并行/条件调度能力
+// =========================================
+describe("Vox 异步编排能力", () => {
+  it("Vox 的 prompt 应该包含并行调度的描述", async () => {
+    const { getAgents } = await import("../src/agents")
+    const prompt = getAgents().vox.prompt
+    expect(prompt).toMatch(/同时派|并行|同时.*返回|并行.*调度/i)
+  })
+
+  it("Vox 的 prompt 应该包含条件分支的描述", async () => {
+    const { getAgents } = await import("../src/agents")
+    const prompt = getAgents().vox.prompt
+    expect(prompt).toMatch(/如果.*则|条件|分支|根据结果.*决定/i)
+  })
+
+  it("Vox 的 prompt 应该包含等待全部完成再汇总的描述", async () => {
+    const { getAgents } = await import("../src/agents")
+    const prompt = getAgents().vox.prompt
+    expect(prompt).toMatch(/等待.*返回|全部.*完成.*汇总|汇总.*结果/i)
+  })
+})

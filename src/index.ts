@@ -14,6 +14,9 @@ import { AnalyticsCollector } from "./analytics/collector"
 import { MemoryStore } from "./memory/store"
 import { createRolloverHandler } from "./memory/context-rollover"
 import { buildMemoryContext } from "./memory/hierarchy"
+import { ToolResultCache } from "./cost/cache"
+import { TaskStatePersistence } from "./hooks/task-state-persistence"
+import { createSmithAgent } from "./agents/smith"
 
 export const xAgt: Plugin = async (ctx) => {
   console.log("[xAgt] plugin loaded")
@@ -24,6 +27,7 @@ export const xAgt: Plugin = async (ctx) => {
   const analytics = new AnalyticsCollector(memoryStore)
   const rolloverHandler = createRolloverHandler(memoryStore)
   const pendingSmithSessions = new Set<string>()
+  const taskState = new TaskStatePersistence()
 
   const taskManager = createTaskManagerHook()
   const systemTransform = createSystemTransformHook()
@@ -46,6 +50,12 @@ export const xAgt: Plugin = async (ctx) => {
         return
       }
 
+      // M6: 文件修改时清除相关缓存
+      if (result.allow && (input.tool === "edit" || input.tool === "write")) {
+        ToolResultCache.invalidateByPrefix("grep:")
+        ToolResultCache.invalidateByPrefix("glob:")
+      }
+
       await taskManager["tool.execute.before"](input, output)
     },
 
@@ -65,6 +75,30 @@ export const xAgt: Plugin = async (ctx) => {
             outputText.slice(0, 200),
             { sessionID: input.sessionID }
           )
+        }
+
+        // M5: Fixer 任务失败时保存状态，完成时清除
+        if (agentName === "fixer") {
+          if (output.title?.includes("failed") || outputText.includes("失败")) {
+            await taskState.save({
+              version: 1,
+              updatedAt: new Date().toISOString(),
+              activeTask: {
+                taskID: `fixer-${Date.now()}`,
+                sandboxRef: { branchName: "", worktreePath: "", baseCommit: "" },
+                instruction: { files: [], operation: outputText.slice(0, 200), verification: "" },
+                completedSteps: [],
+                nextStepIndex: 0,
+                totalSteps: 1,
+                modifiedFiles: [],
+                contextSummary: outputText.slice(0, 200),
+                lastError: outputText.slice(0, 200),
+              },
+              pendingTasks: [],
+            })
+          } else if (output.title?.includes("completed")) {
+            await taskState.clear()
+          }
         }
       }
       await taskManager["tool.execute.after"](input, output)
@@ -91,6 +125,23 @@ export const xAgt: Plugin = async (ctx) => {
         }
       } catch {
         // 记忆注入失败不影响主流程
+      }
+
+      // M5: 断点续传 — 检测未完成任务
+      try {
+        const pending = await taskState.load()
+        if (pending?.activeTask) {
+          output.system = output.system || []
+          output.system.push(
+            "\n## 断点续传：检测到未完成的任务\n" +
+            `检测到上一个 Fixer 任务（${pending.activeTask.taskID}）未完成。\n` +
+            `已完成 ${pending.activeTask.completedSteps.length}/${pending.activeTask.totalSteps} 步。\n` +
+            `上下文：${pending.activeTask.contextSummary}\n` +
+            `请根据情况决定是否恢复或重新分派。`
+          )
+        }
+      } catch {
+        // 续传信息不影响主流程
       }
 
       // 注入 Smith 激活指令
@@ -153,6 +204,7 @@ export const xAgt: Plugin = async (ctx) => {
       const lynxAgent = createLynxAgent()
       const fixerAgent = createFixerAgent()
       const judgeAgent = createJudgeAgent()
+      const smithAgent = createSmithAgent()
 
       const applyOverrides = (agent: any, name: string) => {
         const cfg = merged.agentConfigs[name]
@@ -166,6 +218,7 @@ export const xAgt: Plugin = async (ctx) => {
       ;(config as any).agent.lynx = merged.disabled.includes("lynx" as any) ? undefined : applyOverrides(lynxAgent, "lynx")
       ;(config as any).agent.fixer = merged.disabled.includes("fixer" as any) ? undefined : applyOverrides(fixerAgent, "fixer")
       ;(config as any).agent.judge = merged.disabled.includes("judge" as any) ? undefined : applyOverrides(judgeAgent, "judge")
+      ;(config as any).agent.smith = merged.disabled.includes("smith" as any) ? undefined : applyOverrides(smithAgent, "smith")
     },
 
     "chat.params": async (input: any, output: any) => {

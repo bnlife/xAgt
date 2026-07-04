@@ -205,8 +205,8 @@ describe("Agent prompt 完整性", () => {
     const { getAgents } = await import("../src/agents")
     const agents = getAgents()
     for (const [name, agent] of Object.entries(agents)) {
-      // Vox 完整版更长（2000-6000），Lynx/Fixer 在 800-3000
-      const minLength = name === "vox" ? 2000 : 800
+      // Vox 完整版更长（2000-6000），Smith 较短（500-3000），其余在 800-3000
+      const minLength = name === "vox" ? 2000 : (name === "smith" ? 500 : 800)
       const maxLength = name === "vox" ? 6000 : 3000
       expect(
         agent.prompt.length,

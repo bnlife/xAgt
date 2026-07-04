@@ -29,17 +29,19 @@ describe("插件入口导出", () => {
 // 期望：vox、lynx、fixer 三个 Agent 都存在
 // =========================================
 describe("Agent 注册 - getAgents()", () => {
-  it("默认注册 4 个 Agent：vox、lynx、fixer、judge", async () => {
+  it("默认注册 5 个 Agent：vox、lynx、fixer、judge、smith", async () => {
     const { getAgents } = await import("../src/agents")
     const agents = getAgents()
 
-    // 验证有 4 个 Agent
+    // 验证有 5 个 Agent
     const agentNames = Object.keys(agents)
-    expect(agentNames.length).toBe(4)
+    expect(agentNames.length).toBe(5)
     expect(agentNames).toContain("vox")
     expect(agentNames).toContain("lynx")
     expect(agentNames).toContain("fixer")
     expect(agentNames).toContain("judge")
+    expect(agentNames).toContain("smith")
+    expect(agents.smith).toBeDefined()
   })
 
   it("每个 Agent 都有 description 和 prompt", async () => {
@@ -107,16 +109,17 @@ describe("Agent 禁用 - getAgents(disabled)", () => {
     const { getAgents } = await import("../src/agents")
     const agents = getAgents(["lynx"])
     const agentNames = Object.keys(agents)
-    expect(agentNames.length).toBe(3)
+    expect(agentNames.length).toBe(4)
     expect(agentNames).not.toContain("lynx")
     expect(agentNames).toContain("vox")
     expect(agentNames).toContain("fixer")
     expect(agentNames).toContain("judge")
+    expect(agentNames).toContain("smith")
   })
 
   it("禁用所有 Agent 后，列表为空", async () => {
     const { getAgents } = await import("../src/agents")
-    const agents = getAgents(["vox", "lynx", "fixer", "judge"])
+    const agents = getAgents(["vox", "lynx", "fixer", "judge", "smith"])
     expect(Object.keys(agents).length).toBe(0)
   })
 })
@@ -127,11 +130,14 @@ describe("Agent 禁用 - getAgents(disabled)", () => {
 // 期望：每个 Agent 都有对应的中文描述
 // =========================================
 describe("AGENT_DESCRIPTIONS 常量", () => {
-  it("应该包含 4 个 Agent 的描述", async () => {
+  it("应该包含 5 个 Agent 的描述", async () => {
     const { AGENT_DESCRIPTIONS } = await import("../src/agents")
     expect(AGENT_DESCRIPTIONS.vox).toBeDefined()
     expect(AGENT_DESCRIPTIONS.lynx).toBeDefined()
     expect(AGENT_DESCRIPTIONS.fixer).toBeDefined()
+    expect(AGENT_DESCRIPTIONS.judge).toBeDefined()
+    expect(AGENT_DESCRIPTIONS.smith).toBeDefined()
+    expect(Object.keys(AGENT_DESCRIPTIONS).length).toBe(5)
   })
 
   it("每个描述都是非空字符串", async () => {

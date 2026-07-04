@@ -9,11 +9,14 @@ import { loadXAgtConfig, getReasoningForAgent } from "./config"
 import type { AgentConfig } from "./config"
 import { resolveAgentFromSession } from "./gateway/interceptor"
 import { ToolGateway } from "./gateway/interceptor"
+import { createSmithTrigger } from "./hooks/smith-trigger"
 
 export const xAgt: Plugin = async (ctx) => {
   console.log("[xAgt] plugin loaded")
 
   const gateway = new ToolGateway()
+  const smithTrigger = createSmithTrigger()
+  const pendingSmithSessions = new Set<string>()
 
   const taskManager = createTaskManagerHook()
   const systemTransform = createSystemTransformHook()
@@ -46,13 +49,35 @@ export const xAgt: Plugin = async (ctx) => {
       taskManager["experimental.chat.messages.transform"],
 
     // ── 系统约束注入 ─────────────────────────────
-    "experimental.chat.system.transform":
-      systemTransform["experimental.chat.system.transform"],
+    "experimental.chat.system.transform": async (input: any, output: any) => {
+      // 先注入系统约束
+      await systemTransform["experimental.chat.system.transform"](input, output)
+
+      // 注入 Smith 激活指令
+      if (input?.sessionID && pendingSmithSessions.has(input.sessionID)) {
+        pendingSmithSessions.delete(input.sessionID)
+        output.system = output.system || []
+        output.system.push(
+          "\n## Smith 定期审查已触发\n" +
+          "本回合 Smith（锐匠）需要执行一次定期审查。\n" +
+          "请调度 Smith 审查 xAgt 源代码，检查 Prompt 一致性和规范合规性。\n" +
+          "这是一次低频例行审查，不影响正常任务流程。"
+        )
+      }
+    },
 
     // ── 输出拦截器 ───────────────────────────────
     // 监听 Vox 回复，若含代码却无 task() 调用，替换为警告
     "chat.message": async (input: any, output: any) => {
       if (input.agent !== "vox") return
+
+      // Smith 频率计数
+      if (input.sessionID) {
+        smithTrigger.activate(input.sessionID)
+        if (smithTrigger.shouldActivate(input.sessionID)) {
+          pendingSmithSessions.add(input.sessionID)
+        }
+      }
 
       const text = (output.parts || [])
         .filter((p: any) => p.type === "text")

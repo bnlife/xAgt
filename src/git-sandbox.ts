@@ -8,6 +8,7 @@
 import { execSync } from "child_process"
 import { existsSync, mkdirSync, rmSync } from "fs"
 import { join } from "path"
+import { XAGT_DIR, SANDBOX_DIR } from "./constants"
 
 export interface SandboxInfo {
   worktreePath: string
@@ -28,7 +29,7 @@ export class SandboxManager {
 
   constructor(options?: SandboxOptions) {
     this.repoDir = options?.repoDir ?? process.cwd()
-    this.sandboxDir = options?.sandboxDir ?? join(this.repoDir, ".xagt", "sandbox")
+    this.sandboxDir = options?.sandboxDir ?? join(this.repoDir, XAGT_DIR, SANDBOX_DIR)
   }
 
   /**

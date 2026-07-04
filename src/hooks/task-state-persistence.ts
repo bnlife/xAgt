@@ -11,6 +11,7 @@
 import { readFile, writeFile, unlink } from "fs/promises"
 import { existsSync } from "fs"
 import { join } from "path"
+import { XAGT_DIR, TASK_STATE_FILE } from "../constants"
 
 export interface SandboxRef {
   branchName: string
@@ -59,8 +60,8 @@ export class TaskStatePersistence {
   private filePath: string
 
   constructor(storageDir?: string) {
-    const dir = storageDir ?? join(process.cwd(), ".xagt")
-    this.filePath = join(dir, "task_state.json")
+    const dir = storageDir ?? join(process.cwd(), XAGT_DIR)
+    this.filePath = join(dir, TASK_STATE_FILE)
   }
 
   async save(state: TaskState): Promise<void> {

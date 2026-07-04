@@ -8,6 +8,7 @@
 import { readFile, mkdir, writeFile } from "fs/promises"
 import { existsSync } from "fs"
 import { join, dirname } from "path"
+import { XAGT_DIR, MEMORY_FILE } from "../constants"
 
 export type MemoryType = "lesson" | "pattern" | "decision"
 
@@ -44,8 +45,8 @@ export class MemoryStore {
    * @param storageDir 存储目录，默认 .xagt/
    */
   constructor(storageDir?: string) {
-    const dir = storageDir ?? join(process.cwd(), ".xagt")
-    this.filePath = join(dir, "memory.jsonl")
+    const dir = storageDir ?? join(process.cwd(), XAGT_DIR)
+    this.filePath = join(dir, MEMORY_FILE)
   }
 
   /**

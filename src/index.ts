@@ -7,15 +7,13 @@ import { createTaskManagerHook } from "./hooks"
 import { createSystemTransformHook } from "./hooks/system-transform"
 import { loadXAgtConfig, getReasoningForAgent } from "./config"
 import type { AgentConfig } from "./config"
-
-/** Vox 禁止直接调用的工具列表（只能通过 task() 派子代理） */
-const VOZ_BLOCKED_TOOLS = new Set([
-  "read", "write", "edit", "bash",
-  "grep", "glob", "apply_diff",
-])
+import { resolveAgentFromSession } from "./gateway/interceptor"
+import { ToolGateway } from "./gateway/interceptor"
 
 export const xAgt: Plugin = async (ctx) => {
-  console.log("[xAgt] 插件已加载")
+  console.log("[xAgt] plugin loaded")
+
+  const gateway = new ToolGateway()
 
   const taskManager = createTaskManagerHook()
   const systemTransform = createSystemTransformHook()
@@ -27,16 +25,15 @@ export const xAgt: Plugin = async (ctx) => {
     // ── 工具拦截器 ──────────────────────────────
     // 在 Vox 调用 read/write/edit/bash 时直接拦截
     "tool.execute.before": async (input: any, output: any) => {
-      const sessionID = (input.sessionID || "").toLowerCase()
-      const isVox = sessionID.startsWith("vox")
+      const agentName = resolveAgentFromSession(input.sessionID || "")
+      const result = gateway.check(agentName, input.tool, output.args)
 
-      if (isVox && VOZ_BLOCKED_TOOLS.has(input.tool)) {
-        console.log(`[xAgt] ⛔ 拦截 Vox 调用 ${input.tool}`)
+      if (!result.allow) {
         output.args = {
           _blocked: true,
-          _error: `[xAgt] Vox 禁止直接使用 ${input.tool} 工具。请使用 task() 派子代理（lynx/fixer/judge）执行。`,
+          _error: `[xAgt] ${result.reason}`,
         }
-        return // 不执行原 hook，工具会因 _error 返回错误
+        return
       }
 
       await taskManager["tool.execute.before"](input, output)
@@ -68,7 +65,7 @@ export const xAgt: Plugin = async (ctx) => {
 
       // 有代码但没 task() → 判定违规
       if ((hasCodeBlock || hasInlineCode) && !hasTaskCall) {
-        console.log(`[xAgt] ⛔ 拦截 Vox 违规回复（含代码无 task()）`)
+        console.log(`[xAgt] blocked vox reply with code but no task()`)
         output.parts = [
           {
             type: "text",

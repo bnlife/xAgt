@@ -7,7 +7,7 @@
  */
 import { describe, it, expect, beforeAll } from "bun:test"
 
-const OPENCODE_EXE = "C:\\Users\\叙拉古的城主\\AppData\\Roaming\\npm\\node_modules\\opencode-ai\\bin\\opencode.exe"
+const OPENCODE_EXE = process.env.OPENCODE_EXE || "C:\\Users\\叙拉古的城主\\AppData\\Roaming\\npm\\node_modules\\opencode-ai\\bin\\opencode.exe"
 const RUN_TIMEOUT = 30000
 
 async function opencodeRun(args: string[], cwd?: string, timeoutMs = RUN_TIMEOUT) {

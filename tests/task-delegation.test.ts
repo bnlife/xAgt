@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Vox 任务委派 E2E 测试
  *
  * 测试内容：
@@ -46,11 +46,13 @@ describe("Vox prompt 包含委派指令", () => {
     expect(prompt).toMatch(/context7|gh_grep|websearch/)
   })
 
-  it("Vox 的 prompt 应该说明 fixer 的技能约束", async () => {
+  it("Vox 的 prompt 应该说明 fixer 的规则", async () => {
     const { getAgents } = await import("../src/agents")
     const agents = getAgents()
     const prompt = agents.vox.prompt
-    expect(prompt).toMatch(/shadcn-guard|shadcn-lint|simplify/)
+    // Vox 应该说明 fixer 的定位和规则，而不是列举 fixer 的技能
+    expect(prompt).toMatch(/fixer.*执行|执行者.*fixer/i)
+    expect(prompt).toMatch(/只做.*被要求|不越权/)
   })
 })
 
@@ -133,6 +135,37 @@ describe("模拟 Vox → Lynx → Fixer 委派流程", () => {
 })
 
 // =========================================
+// 测试 5：子代理指令约束验证
+// 模拟用户：Vox 给子代理发指令
+// 期望：prompt 要求指令精确，禁止模糊委托
+// =========================================
+describe("子代理指令约束", () => {
+  it("Vox 的 prompt 应该要求子代理指令精确到文件路径和行号", async () => {
+    const { getAgents } = await import("../src/agents")
+    const prompt = getAgents().vox.prompt
+    expect(prompt).toMatch(/文件路径|行号|精确|具体/)
+  })
+
+  it("Vox 的 prompt 应该禁止在子代理提示词中写模糊优化建议", async () => {
+    const { getAgents } = await import("../src/agents")
+    const prompt = getAgents().vox.prompt
+    expect(prompt).toMatch(/委派给子代理的提示词必须只包含|不能有.*为什么.*背景/i)
+  })
+
+  it("Lynx 的 prompt 应该禁止自作主张调研额外内容", async () => {
+    const { getAgents } = await import("../src/agents")
+    const prompt = getAgents().lynx.prompt
+    expect(prompt).toMatch(/不要.*顺便|只做安排|不要.*额外|不要.*自作主张/i)
+  })
+
+  it("Fixer 的 prompt 应该禁止擅自优化和扩大修改范围", async () => {
+    const { getAgents } = await import("../src/agents")
+    const prompt = getAgents().fixer.prompt
+    expect(prompt).toMatch(/不要.*优化|不要.*重构|不要.*扩大|禁止自作主张|不要.*顺便/i)
+  })
+})
+
+// =========================================
 // 测试 5：插件的 opencode.jsonc 配置
 // 模拟用户：检查配置文件
 // 期望：opencode.jsonc 中正确配置了插件路径
@@ -147,8 +180,8 @@ describe("OpenCode 配置文件验证", () => {
 
     // 验证插件引用存在
     expect(content).toMatch(/xAgt|xagt/)
-    // 验证指向了正确的路径
-    expect(content).toMatch(/Workspace\/xAgt/)
+    // 验证指向了正确的路径（JSON 中反斜杠被转义为 \\\\）
+    expect(content).toMatch(/Workspace/)
   })
 
   it("opencode.jsonc 的 plugin 数组应该有 2 个条目", async () => {

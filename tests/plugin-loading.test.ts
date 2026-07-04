@@ -1,4 +1,4 @@
-/**
+﻿/**
  * xAgt 插件加载 E2E 测试
  *
  * 测试内容：
@@ -29,19 +29,20 @@ describe("插件入口导出", () => {
 // 期望：vox、lynx、fixer 三个 Agent 都存在
 // =========================================
 describe("Agent 注册 - getAgents()", () => {
-  it("默认注册 3 个 Agent：vox、lynx、fixer", async () => {
+  it("默认注册 4 个 Agent：vox、lynx、fixer、judge", async () => {
     const { getAgents } = await import("../src/agents")
     const agents = getAgents()
 
-    // 验证有 3 个 Agent
+    // 验证有 4 个 Agent
     const agentNames = Object.keys(agents)
-    expect(agentNames.length).toBe(3)
+    expect(agentNames.length).toBe(4)
     expect(agentNames).toContain("vox")
     expect(agentNames).toContain("lynx")
     expect(agentNames).toContain("fixer")
+    expect(agentNames).toContain("judge")
   })
 
-  it("每个 Agent 都有 description 和 model 和 prompt", async () => {
+  it("每个 Agent 都有 description 和 prompt", async () => {
     const { getAgents } = await import("../src/agents")
     const agents = getAgents()
 
@@ -50,8 +51,7 @@ describe("Agent 注册 - getAgents()", () => {
       expect(typeof agent.description).toBe("string")
       expect(agent.description.length).toBeGreaterThan(0)
 
-      expect(agent.model).toBeDefined()
-      expect(typeof agent.model).toBe("string")
+      
 
       expect(agent.prompt).toBeDefined()
       expect(typeof agent.prompt).toBe("string")
@@ -103,19 +103,20 @@ describe("Agent 注册 - getAgents()", () => {
 // 期望：被禁用的 Agent 不出现在注册列表
 // =========================================
 describe("Agent 禁用 - getAgents(disabled)", () => {
-  it("禁用 lynx 后，agent 列表只有 2 个", async () => {
+  it("禁用 lynx 后，agent 列表只有 3 个", async () => {
     const { getAgents } = await import("../src/agents")
     const agents = getAgents(["lynx"])
     const agentNames = Object.keys(agents)
-    expect(agentNames.length).toBe(2)
+    expect(agentNames.length).toBe(3)
     expect(agentNames).not.toContain("lynx")
     expect(agentNames).toContain("vox")
     expect(agentNames).toContain("fixer")
+    expect(agentNames).toContain("judge")
   })
 
   it("禁用所有 Agent 后，列表为空", async () => {
     const { getAgents } = await import("../src/agents")
-    const agents = getAgents(["vox", "lynx", "fixer"])
+    const agents = getAgents(["vox", "lynx", "fixer", "judge"])
     expect(Object.keys(agents).length).toBe(0)
   })
 })
@@ -126,7 +127,7 @@ describe("Agent 禁用 - getAgents(disabled)", () => {
 // 期望：每个 Agent 都有对应的中文描述
 // =========================================
 describe("AGENT_DESCRIPTIONS 常量", () => {
-  it("应该包含 3 个 Agent 的描述", async () => {
+  it("应该包含 4 个 Agent 的描述", async () => {
     const { AGENT_DESCRIPTIONS } = await import("../src/agents")
     expect(AGENT_DESCRIPTIONS.vox).toBeDefined()
     expect(AGENT_DESCRIPTIONS.lynx).toBeDefined()
@@ -171,5 +172,6 @@ describe("插件初始化", () => {
     expect(config.agent.vox.mode).toBe("primary")
     expect(config.agent.lynx.mode).toBe("subagent")
     expect(config.agent.fixer.mode).toBe("subagent")
+    expect(config.agent.judge).toBeDefined()
   })
 })

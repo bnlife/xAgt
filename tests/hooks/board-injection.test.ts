@@ -2,7 +2,7 @@ import { describe, it, expect } from "bun:test"
 
 describe("看板状态注入", () => {
   it("有 running 任务时注入看板", async () => {
-    const { createTaskManagerHook } = await import("../../../src/hooks/task-manager/index")
+    const { createTaskManagerHook } = await import("../../src/hooks")
     const hook = createTaskManagerHook()
     await hook["tool.execute.before"]!(
       { tool: "task", sessionID: "ses_vox", callID: "call_1" } as any,
@@ -15,7 +15,7 @@ describe("看板状态注入", () => {
   })
 
   it("没有活动任务时不注入", async () => {
-    const { createTaskManagerHook } = await import("../../../src/hooks/task-manager/index")
+    const { createTaskManagerHook } = await import("../../src/hooks")
     const hook = createTaskManagerHook()
     const messages = [{ info: { role: "user" }, parts: [{ type: "text", text: "你好" }] }]
     const originalLen = messages[0].parts.length
@@ -24,7 +24,7 @@ describe("看板状态注入", () => {
   })
 
   it("已完成（terminal_unreconciled）的任务也会被注入", async () => {
-    const { createTaskManagerHook } = await import("../../../src/hooks/task-manager/index")
+    const { createTaskManagerHook } = await import("../../src/hooks")
     const hook = createTaskManagerHook()
     await hook["tool.execute.before"]!(
       { tool: "task", sessionID: "ses_vox", callID: "call_1" } as any,
@@ -41,7 +41,7 @@ describe("看板状态注入", () => {
   })
 
   it("reconciled 后的任务不再注入", async () => {
-    const { createTaskManagerHook } = await import("../../../src/hooks/task-manager/index")
+    const { createTaskManagerHook } = await import("../../src/hooks")
     const hook = createTaskManagerHook()
     await hook["tool.execute.before"]!(
       { tool: "task", sessionID: "ses_vox", callID: "call_1" } as any,
@@ -61,7 +61,7 @@ describe("看板状态注入", () => {
   })
 
   it("sentinel 防同一轮重复注入", async () => {
-    const { createTaskManagerHook } = await import("../../../src/hooks/task-manager/index")
+    const { createTaskManagerHook } = await import("../../src/hooks")
     const hook = createTaskManagerHook()
     await hook["tool.execute.before"]!(
       { tool: "task", sessionID: "ses_vox", callID: "call_1" } as any,

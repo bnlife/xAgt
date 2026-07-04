@@ -2,7 +2,7 @@ import { describe, it, expect } from "bun:test"
 
 describe("BackgroundJobBoard 看板数据结构", () => {
   it("启动任务后看板有一条记录，状态为 running", async () => {
-    const { BackgroundJobBoard } = await import("../../../src/utils/background-job-board")
+    const { BackgroundJobBoard } = await import("../../src/utils/background-job-board")
     const board = new BackgroundJobBoard()
     board.launch("task_1", { agent: "lynx", prompt: "查一下" })
     const record = board.get("task_1")
@@ -10,7 +10,7 @@ describe("BackgroundJobBoard 看板数据结构", () => {
   })
 
   it("完成任务后状态变为 terminal_unreconciled", async () => {
-    const { BackgroundJobBoard } = await import("../../../src/utils/background-job-board")
+    const { BackgroundJobBoard } = await import("../../src/utils/background-job-board")
     const board = new BackgroundJobBoard()
     board.launch("task_1", { agent: "lynx", prompt: "查一下" })
     board.complete("task_1", "完成")
@@ -19,7 +19,7 @@ describe("BackgroundJobBoard 看板数据结构", () => {
   })
 
   it("markReconciled 后状态变为 reconciled", async () => {
-    const { BackgroundJobBoard } = await import("../../../src/utils/background-job-board")
+    const { BackgroundJobBoard } = await import("../../src/utils/background-job-board")
     const board = new BackgroundJobBoard()
     board.launch("task_1", { agent: "lynx", prompt: "查一下" })
     board.complete("task_1", "完成")
@@ -28,7 +28,7 @@ describe("BackgroundJobBoard 看板数据结构", () => {
   })
 
   it("getActive 只返回 running 和 terminal_unreconciled", async () => {
-    const { BackgroundJobBoard } = await import("../../../src/utils/background-job-board")
+    const { BackgroundJobBoard } = await import("../../src/utils/background-job-board")
     const board = new BackgroundJobBoard()
     board.launch("t1", { agent: "lynx", prompt: "a" })
     board.launch("t2", { agent: "fixer", prompt: "b" })
@@ -41,7 +41,7 @@ describe("BackgroundJobBoard 看板数据结构", () => {
   })
 
   it("getAllRunning 只返回 running（不包含 terminal_unreconciled）", async () => {
-    const { BackgroundJobBoard } = await import("../../../src/utils/background-job-board")
+    const { BackgroundJobBoard } = await import("../../src/utils/background-job-board")
     const board = new BackgroundJobBoard()
     board.launch("t1", { agent: "lynx", prompt: "查一下" })
     board.complete("t1", "ok")
@@ -50,7 +50,7 @@ describe("BackgroundJobBoard 看板数据结构", () => {
   })
 
   it("cleanReconciled 删除所有 reconciled 记录", async () => {
-    const { BackgroundJobBoard } = await import("../../../src/utils/background-job-board")
+    const { BackgroundJobBoard } = await import("../../src/utils/background-job-board")
     const board = new BackgroundJobBoard()
     board.launch("t1", { agent: "lynx", prompt: "a" })
     board.complete("t1", "ok")

@@ -67,7 +67,7 @@ describe("chat.params hook 注入验证", () => {
 // 测试 2：API 实际请求验证（集成测试）
 // =========================================
 describe("DeepSeek API 思考模式集成测试", () => {
-  const apiKey = "sk-8e031985634945cfbb71bb516b9a6e9e"
+  const apiKey = process.env.DEEPSEEK_API_KEY
 
   // 跳过条件：没有 API key
   const itIf = (condition: boolean) => condition ? it : it.skip

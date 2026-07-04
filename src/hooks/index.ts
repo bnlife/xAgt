@@ -1,4 +1,4 @@
-import { BackgroundJobBoard } from "../../utils/background-job-board"
+import { BackgroundJobBoard } from "../utils/background-job-board"
 
 const BOARD_SENTINEL = "SENTINEL: background-job-board-v1"
 
@@ -7,7 +7,7 @@ export interface TaskManagerHook {
   "tool.execute.before": (input: { tool: string; sessionID: string; callID: string }, output: { args: any }) => Promise<void>
   "tool.execute.after": (input: { tool: string; sessionID: string; callID: string; args: any }, output: { title: string; output: string; metadata: any }) => Promise<void>
   "experimental.chat.messages.transform": (input: {}, output: { messages: Array<{ info: { role: string }; parts: Array<{ type: string; text: string }> }> }) => Promise<void>
-  event: (input: { event: { type: string; properties?: any } }) => Promise<void>
+  event: (input: { event: { type: string; properties?: any; sessionID?: string } }) => Promise<void>
 }
 
 export function createTaskManagerHook(): TaskManagerHook {
@@ -22,7 +22,7 @@ export function createTaskManagerHook(): TaskManagerHook {
       board.launch(input.callID, {
         agent: args.subagent_type ?? "unknown",
         prompt: args.prompt ?? "",
-      })
+      }, input.sessionID)
     },
 
     "tool.execute.after": async (input, output) => {
@@ -37,6 +37,7 @@ export function createTaskManagerHook(): TaskManagerHook {
     },
 
     "experimental.chat.messages.transform": async (_input, output) => {
+      // 注入看板：展示所有活跃任务
       const active = board.getActive()
       if (active.length === 0) return
 
@@ -59,15 +60,20 @@ export function createTaskManagerHook(): TaskManagerHook {
         type: "text",
         text: `## 后台任务看板\n${summary}\n${BOARD_SENTINEL}`,
       })
+      // 注意：不清除任务，保留 terminal_unreconciled 供后续引用
     },
 
     event: async (input) => {
-      // session idle 或 status 变化时，自动归档已注入过的完成任务
-      if (input.event.type === "session.idle" || input.event.type === "session.status") {
-        const count = board.reconcileAll("")
-        if (count > 0) {
-          board.cleanReconciled()
-        }
+      // session idle 或 status 变化时，仅清理该会话的已完成任务
+      if (input.event.type !== "session.idle" && input.event.type !== "session.status") return
+
+      // 提取 sessionID（不同事件来源可能在不同字段）
+      const sessionID = input.event.sessionID ?? input.event.properties?.sessionID ?? ""
+      if (!sessionID) return // 无法确定会话则不清理
+
+      const count = board.reconcileAll(sessionID)
+      if (count > 0) {
+        board.cleanReconciled()
       }
     },
   }

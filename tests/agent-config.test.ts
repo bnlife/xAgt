@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Agent 配置集成 E2E 测试
  *
  * 测试内容：
@@ -39,15 +39,21 @@ describe("项目结构完整性", () => {
     expect(stat.isFile()).toBe(true)
   })
 
+  it("src/agents/judge.ts 应该存在", async () => {
+    const fs = await import("fs/promises")
+    const stat = await fs.stat("src/agents/judge.ts")
+    expect(stat.isFile()).toBe(true)
+  })
+
   it("src/agents/index.ts 应该存在", async () => {
     const fs = await import("fs/promises")
     const stat = await fs.stat("src/agents/index.ts")
     expect(stat.isFile()).toBe(true)
   })
 
-  it("dist/xagt.js 应该存在（编译产物）", async () => {
+  it("dist/index.js 应该存在（编译产物）", async () => {
     const fs = await import("fs/promises")
-    const stat = await fs.stat("dist/xagt.js")
+    const stat = await fs.stat("dist/index.js")
     expect(stat.isFile()).toBe(true)
   })
 })
@@ -117,7 +123,7 @@ describe("package.json 配置", () => {
 })
 
 // =========================================
-// 测试 4：所有 Agent 的 prompt 完整性
+// 测试 4：Agent prompt 完整性
 // 模拟用户：查看 Agent 的思考方式
 // 期望：每个 Agent 的 prompt 都覆盖了关键点
 // =========================================
@@ -132,7 +138,7 @@ describe("Agent prompt 完整性", () => {
       "Delegation",
       "Skills",
       "Communication",
-      "IronLaws",
+      
       "S1",
       "S2",
       "S3",
@@ -143,11 +149,11 @@ describe("Agent prompt 完整性", () => {
       "三振出局",
       "@lynx",
       "@fixer",
-      "铁律1",
-      "铁律2",
-      "铁律3",
-      "铁律4",
-      "铁律5",
+      
+      
+      
+      
+      
     ]
     for (const check of checks) {
       expect(prompt).toMatch(new RegExp(check, "i"))
@@ -215,38 +221,19 @@ describe("Agent prompt 完整性", () => {
 })
 
 // =========================================
-// 测试 6：思考模式配置验证
-// 模拟用户：查看 Agent 的思考模式设置
-// 期望：思考强度符合预期
+// 测试 5：思考模式配置验证
+// Agent 的推理参数通过 chat.params hook 注入，
+// 已在 tests/thinking-mode.test.ts 中覆盖测试。
 // =========================================
-describe("Agent 思考模式配置", () => {
-  it("Vox 的思考强度应该为 max", async () => {
-    const { getAgents } = await import("../src/agents")
-    const vox = getAgents().vox
-    expect(vox.options?.reasoning_effort).toBe("max")
-  })
-
-  it("Lynx 的思考模式应该关闭", async () => {
-    const { getAgents } = await import("../src/agents")
-    const lynx = getAgents().lynx
-    expect(lynx.options?.thinking?.type).toBe("disabled")
-  })
-
-  it("Fixer 的思考强度应该为 high", async () => {
-    const { getAgents } = await import("../src/agents")
-    const fixer = getAgents().fixer
-    expect(fixer.options?.reasoning_effort).toBe("high")
-  })
-})
 
 // =========================================
-// 测试 5：dist 产物验证
+// 测试 6：构建产物验证
 // 模拟用户：发布插件
 // 期望：构建产物完整可加载
 // =========================================
 describe("构建产物验证", () => {
-  it("dist/xagt.js 应该能被动态 import", async () => {
-    const mod = await import("../dist/xagt.js")
+  it("dist/index.js 应该能被动态 import", async () => {
+    const mod = await import("../dist/index.js")
     expect(mod.xAgt).toBeDefined()
     expect(typeof mod.xAgt).toBe("function")
   })

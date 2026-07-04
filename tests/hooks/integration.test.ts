@@ -2,7 +2,7 @@ import { describe, it, expect } from "bun:test"
 
 describe("TaskManager Hook 集成测试", () => {
   it("拦截 task → 看板新增 running", async () => {
-    const { createTaskManagerHook } = await import("../../../src/hooks/task-manager/index")
+    const { createTaskManagerHook } = await import("../../src/hooks")
     const hook = createTaskManagerHook()
     await hook["tool.execute.before"]!(
       { tool: "task", sessionID: "ses_vox", callID: "call_1" } as any,
@@ -14,7 +14,7 @@ describe("TaskManager Hook 集成测试", () => {
   })
 
   it("after 完成后 → 状态变为 terminal_unreconciled", async () => {
-    const { createTaskManagerHook } = await import("../../../src/hooks/task-manager/index")
+    const { createTaskManagerHook } = await import("../../src/hooks")
     const hook = createTaskManagerHook()
     await hook["tool.execute.before"]!(
       { tool: "task", sessionID: "ses_vox", callID: "call_1" } as any,
@@ -28,7 +28,7 @@ describe("TaskManager Hook 集成测试", () => {
   })
 
   it("event session.idle 触发后 → reconciled", async () => {
-    const { createTaskManagerHook } = await import("../../../src/hooks/task-manager/index")
+    const { createTaskManagerHook } = await import("../../src/hooks")
     const hook = createTaskManagerHook()
     await hook["tool.execute.before"]!(
       { tool: "task", sessionID: "ses_vox", callID: "call_1" } as any,
@@ -38,12 +38,12 @@ describe("TaskManager Hook 集成测试", () => {
       { tool: "task", sessionID: "ses_vox", callID: "call_1", args: {} } as any,
       { title: "Background task completed", output: "找到了", metadata: {} } as any,
     )
-    await hook.event!({ event: { type: "session.idle" } } as any)
+    await hook.event!({ event: { type: "session.idle", sessionID: "ses_vox" } } as any)
     expect(hook.getBoard().get("call_1")).toBeUndefined() // 已清理
   })
 
   it("Vox → Lynx 完整闭环", async () => {
-    const { createTaskManagerHook } = await import("../../../src/hooks/task-manager/index")
+    const { createTaskManagerHook } = await import("../../src/hooks")
     const hook = createTaskManagerHook()
     await hook["tool.execute.before"]!(
       { tool: "task", sessionID: "ses_vox", callID: "call_lynx" } as any,

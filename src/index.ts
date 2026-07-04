@@ -144,18 +144,29 @@ export const xAgt: Plugin = async (ctx) => {
         // 续传信息不影响主流程
       }
 
-      // 注入 Smith 激活指令
+      // Smith 定期审查：写报告到文件，Vox 仅提醒用户
       if (input?.sessionID && pendingSmithSessions.has(input.sessionID)) {
         pendingSmithSessions.delete(input.sessionID)
         output.system = output.system || []
-        const analyticsReport = await analytics.getReportForSmith()
+
+        // 生成报告并写入文件
+        try {
+          const { join } = await import("path")
+          const { mkdir, writeFile } = await import("fs/promises")
+          const { existsSync } = await import("fs")
+          const { XAGT_DIR } = await import("./constants")
+          const reportsDir = join(process.cwd(), XAGT_DIR, "reports")
+          if (!existsSync(reportsDir)) await mkdir(reportsDir, { recursive: true })
+          const reportContent = await analytics.getReportForSmith()
+          await writeFile(join(reportsDir, "smith-latest.md"), reportContent, "utf-8")
+        } catch {
+          // 报告写入失败不影响主流程
+        }
+
         output.system.push(
-          "\n## Smith 定期审查已触发\n" +
-          "本回合 Smith（锐匠）需要执行一次定期审查。\n" +
-          "请调度 Smith 审查 xAgt 源代码，检查 Prompt 一致性和规范合规性。\n" +
-          "以下是近期分析数据，可辅助审查：\n\n" +
-          analyticsReport + "\n\n" +
-          "基于以上数据，请向 Vox 提出具体的提示词或工具配置微调建议。"
+          "\n## Smith 分析报告已生成\n" +
+          "Smith 的定期分析报告已写入 .xagt/reports/smith-latest.md。\n" +
+          "请用户查阅后自行决定是否需要调整提示词或工具配置。"
         )
       }
     },

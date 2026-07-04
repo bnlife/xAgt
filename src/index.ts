@@ -197,7 +197,7 @@ export const xAgt: Plugin = async (ctx) => {
 
       // 有代码但没 task() → 判定违规
       if ((hasCodeBlock || hasInlineCode) && !hasTaskCall) {
-        console.log(`[xAgt] blocked vox reply with code but no task()`)
+        console.log(`[xAgt] blocked vox reply with code but no task() | session=${input.sessionID}`)
         output.parts = [
           {
             type: "text",

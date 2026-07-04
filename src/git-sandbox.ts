@@ -75,7 +75,7 @@ export class SandboxManager {
 
     // 如果 worktree 已存在，先清理
     if (existsSync(worktreePath)) {
-      console.log(`[xAgt] cleaning up stale worktree at ${worktreePath}`)
+      console.log(`[xAgt] cleanup stale worktree | path=${worktreePath} task=${taskID}`)
       try {
         this.git(["worktree", "remove", "--force", worktreePath])
       } catch {}

@@ -10,12 +10,16 @@ import type { AgentConfig } from "./config"
 import { resolveAgentFromSession } from "./gateway/interceptor"
 import { ToolGateway } from "./gateway/interceptor"
 import { createSmithTrigger } from "./hooks/smith-trigger"
+import { AnalyticsCollector } from "./analytics/collector"
+import { MemoryStore } from "./memory/store"
 
 export const xAgt: Plugin = async (ctx) => {
   console.log("[xAgt] plugin loaded")
 
   const gateway = new ToolGateway()
   const smithTrigger = createSmithTrigger()
+  const memoryStore = new MemoryStore()
+  const analytics = new AnalyticsCollector(memoryStore)
   const pendingSmithSessions = new Set<string>()
 
   const taskManager = createTaskManagerHook()
@@ -42,7 +46,26 @@ export const xAgt: Plugin = async (ctx) => {
       await taskManager["tool.execute.before"](input, output)
     },
 
-    "tool.execute.after": taskManager["tool.execute.after"],
+    "tool.execute.after": async (input: any, output: any) => {
+      // M7-b: 采集 Judge 拒绝 / Fixer 失败事件
+      if (input.tool === "task" && input.sessionID) {
+        const agentName = resolveAgentFromSession(input.sessionID)
+        const outputText = output?.output ?? ""
+        if (agentName === "judge" && (outputText.includes("不通过") || outputText.includes("拒绝"))) {
+          await analytics.recordJudgeRejection(
+            outputText.slice(0, 200),
+            { sessionID: input.sessionID }
+          )
+        }
+        if (agentName === "fixer" && (outputText.includes("失败") || output.title?.includes("failed"))) {
+          await analytics.recordFixerFailure(
+            outputText.slice(0, 200),
+            { sessionID: input.sessionID }
+          )
+        }
+      }
+      await taskManager["tool.execute.after"](input, output)
+    },
 
     // ── 消息注入（看板）──────────────────────────
     "experimental.chat.messages.transform":
@@ -57,11 +80,14 @@ export const xAgt: Plugin = async (ctx) => {
       if (input?.sessionID && pendingSmithSessions.has(input.sessionID)) {
         pendingSmithSessions.delete(input.sessionID)
         output.system = output.system || []
+        const analyticsReport = await analytics.getReportForSmith()
         output.system.push(
           "\n## Smith 定期审查已触发\n" +
           "本回合 Smith（锐匠）需要执行一次定期审查。\n" +
           "请调度 Smith 审查 xAgt 源代码，检查 Prompt 一致性和规范合规性。\n" +
-          "这是一次低频例行审查，不影响正常任务流程。"
+          "以下是近期分析数据，可辅助审查：\n\n" +
+          analyticsReport + "\n\n" +
+          "基于以上数据，请向 Vox 提出具体的提示词或工具配置微调建议。"
         )
       }
     },

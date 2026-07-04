@@ -14,11 +14,12 @@ export class AnalyticsCollector {
   /**
    * 记录 Judge 拒绝事件。
    */
-  async recordJudgeRejection(summary: string, tags?: Record<string, string>): Promise<void> {
+  async recordJudgeRejection(summary: string, rule?: string, tags?: Record<string, string>): Promise<void> {
     const event: Omit<AnalyticsEvent, "timestamp"> = {
       type: "judge_rejection",
       agent: "judge",
       summary,
+      rule: rule ?? "unknown",
       tags,
     }
     // 编码为 memory record，type 固定为 lesson
@@ -31,11 +32,12 @@ export class AnalyticsCollector {
   /**
    * 记录 Fixer 失败事件。
    */
-  async recordFixerFailure(summary: string, tags?: Record<string, string>): Promise<void> {
+  async recordFixerFailure(summary: string, errorType?: string, tags?: Record<string, string>): Promise<void> {
     const event: Omit<AnalyticsEvent, "timestamp"> = {
       type: "fixer_failure",
       agent: "fixer",
       summary,
+      errorType: errorType ?? "unknown",
       tags,
     }
     await this.store.append({
@@ -77,11 +79,11 @@ export class AnalyticsCollector {
     for (const e of events) {
       byType[e.type] = (byType[e.type] ?? 0) + 1
 
-      if (e.type === "judge_rejection" && e.tags?.rule) {
-        rejectionReasons[e.tags.rule] = (rejectionReasons[e.tags.rule] ?? 0) + 1
+      if (e.type === "judge_rejection" && e.rule) {
+        rejectionReasons[e.rule] = (rejectionReasons[e.rule] ?? 0) + 1
       }
-      if (e.type === "fixer_failure" && e.tags?.errorType) {
-        failureTypes[e.tags.errorType] = (failureTypes[e.tags.errorType] ?? 0) + 1
+      if (e.type === "fixer_failure" && e.errorType) {
+        failureTypes[e.errorType] = (failureTypes[e.errorType] ?? 0) + 1
       }
     }
 
@@ -117,14 +119,13 @@ export class AnalyticsCollector {
     }
 
     if (stats.topRejectionReasons.length > 0) {
-      lines.push(``, `### 最常见拒绝原因`)
+      lines.push(``, `### Judge 拒绝原因分布`)
       for (const r of stats.topRejectionReasons.slice(0, 5)) {
         lines.push(`- ${r.reason}: ${r.count} 次`)
       }
     }
-
     if (stats.topFailureTypes.length > 0) {
-      lines.push(``, `### 最常见失败类型`)
+      lines.push(``, `### Fixer 失败类型分布`)
       for (const f of stats.topFailureTypes.slice(0, 5)) {
         lines.push(`- ${f.reason}: ${f.count} 次`)
       }

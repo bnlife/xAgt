@@ -11,6 +11,10 @@ export interface AnalyticsEvent {
   sessionID?: string
   summary: string
   tags?: Record<string, string>
+  /** Judge 拒绝的具体规则（如 logrule、铁律2、越权等） */
+  rule?: string
+  /** Fixer 失败的错误类型（如 type_error、test_failure、compile_error 等） */
+  errorType?: string
 }
 
 export interface RejectionReason {

@@ -69,6 +69,9 @@ export const DEFAULT_AGENT_REASONING: Record<string, ReasoningConfig> = {
   judge: {
     thinking: { type: "disabled" },
   },
+  smith: {
+    thinking: { type: "disabled" },
+  },
 }
 
 export const DEFAULT_AGENT_CONFIGS: Record<string, AgentConfig> = {
@@ -91,6 +94,9 @@ export const DEFAULT_AGENT_CONFIGS: Record<string, AgentConfig> = {
     model: "deepseek/deepseek-chat",
     description: undefined,
     reasoning: DEFAULT_AGENT_REASONING.judge,
+  },
+  smith: {
+    model: "deepseek/deepseek-chat",
   },
 }
 

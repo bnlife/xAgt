@@ -54,11 +54,14 @@ const VOX_HARD_CONSTRAINTS = `
 
 export function createSystemTransformHook() {
   return {
-    "experimental.chat.system.transform": async (
-      _input: any,
-      output: { system: string[] },
-    ) => {
-      output.system.push(VOX_HARD_CONSTRAINTS)
+    "experimental.chat.system.transform": async (input: any, output: any) => {
+      // 仅对 Vox 注入硬约束，避免干扰子代理
+      const sessionID = (input?.sessionID || "").toLowerCase()
+      const isVox = sessionID.startsWith("vox")
+      if (isVox || !sessionID) {
+        output.system = output.system || []
+        output.system.push(VOX_HARD_CONSTRAINTS)
+      }
     },
   }
 }

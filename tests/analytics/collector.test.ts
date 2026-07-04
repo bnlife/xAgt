@@ -14,7 +14,7 @@ describe("AnalyticsCollector", () => {
     try {
       const store = new MemoryStore(tempDir)
       const collector = new AnalyticsCollector(store)
-      await collector.recordJudgeRejection("铁律2违反：Fixer私自扩大了修改范围", { rule: "铁律2" })
+      await collector.recordJudgeRejection("铁律2违反：Fixer私自扩大了修改范围", "铁律2")
       const events = await collector.query()
       expect(events.length).toBe(1)
       expect(events[0].type).toBe("judge_rejection")
@@ -31,7 +31,7 @@ describe("AnalyticsCollector", () => {
     try {
       const store = new MemoryStore(tempDir)
       const collector = new AnalyticsCollector(store)
-      await collector.recordFixerFailure("编译错误：类型不匹配", { errorType: "type_error" })
+      await collector.recordFixerFailure("编译错误：类型不匹配", "type_error")
       const events = await collector.query({ type: "fixer_failure" })
       expect(events.length).toBe(1)
       expect(events[0].summary).toContain("编译错误")
@@ -47,10 +47,10 @@ describe("AnalyticsCollector", () => {
     try {
       const store = new MemoryStore(tempDir)
       const collector = new AnalyticsCollector(store)
-      await collector.recordJudgeRejection("Judge拒绝：日志格式不规范", { rule: "logrule" })
-      await collector.recordJudgeRejection("Judge拒绝：代码风格不合规", { rule: "style" })
-      await collector.recordJudgeRejection("Judge拒绝：日志格式不规范", { rule: "logrule" })
-      await collector.recordFixerFailure("测试失败：断言错误", { errorType: "test" })
+      await collector.recordJudgeRejection("Judge拒绝：日志格式不规范", "logrule")
+      await collector.recordJudgeRejection("Judge拒绝：代码风格不合规", "style")
+      await collector.recordJudgeRejection("Judge拒绝：日志格式不规范", "logrule")
+      await collector.recordFixerFailure("测试失败：断言错误", "test")
 
       const stats = await collector.getStats()
       expect(stats.total).toBe(4)
@@ -87,9 +87,9 @@ describe("AnalyticsCollector", () => {
     try {
       const store = new MemoryStore(tempDir)
       const collector = new AnalyticsCollector(store)
-      await collector.recordJudgeRejection("日志前缀缺失", { rule: "logrule" })
-      await collector.recordJudgeRejection("文件路径错误", { rule: "path" })
-      await collector.recordFixerFailure("类型错误", { errorType: "type" })
+      await collector.recordJudgeRejection("日志前缀缺失", "logrule")
+      await collector.recordJudgeRejection("文件路径错误", "path")
+      await collector.recordFixerFailure("类型错误", "type")
 
       const report = await collector.getReportForSmith()
       expect(report).toContain("judge_rejection")

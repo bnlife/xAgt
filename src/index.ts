@@ -67,12 +67,14 @@ export const xAgt: Plugin = async (ctx) => {
         if (agentName === "judge" && (outputText.includes("不通过") || outputText.includes("拒绝"))) {
           await analytics.recordJudgeRejection(
             outputText.slice(0, 200),
+            undefined,
             { sessionID: input.sessionID }
           )
         }
         if (agentName === "fixer" && (outputText.includes("失败") || output.title?.includes("failed"))) {
           await analytics.recordFixerFailure(
             outputText.slice(0, 200),
+            undefined,
             { sessionID: input.sessionID }
           )
         }

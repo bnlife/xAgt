@@ -149,7 +149,7 @@ describe("子代理指令约束", () => {
   it("Vox 的 prompt 应该禁止在子代理提示词中写模糊优化建议", async () => {
     const { getAgents } = await import("../src/agents")
     const prompt = getAgents().vox.prompt
-    expect(prompt).toMatch(/委派给子代理的提示词必须只包含|不能有.*为什么.*背景/i)
+    expect(prompt).toMatch(/不写背景|不写理由|三段式|模板.*文件.*操作.*验收/i)
   })
 
   it("Lynx 的 prompt 应该禁止自作主张调研额外内容", async () => {

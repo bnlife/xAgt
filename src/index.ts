@@ -12,6 +12,8 @@ import { ToolGateway } from "./gateway/interceptor"
 import { createSmithTrigger } from "./hooks/smith-trigger"
 import { AnalyticsCollector } from "./analytics/collector"
 import { MemoryStore } from "./memory/store"
+import { createRolloverHandler } from "./memory/context-rollover"
+import { buildMemoryContext } from "./memory/hierarchy"
 
 export const xAgt: Plugin = async (ctx) => {
   console.log("[xAgt] plugin loaded")
@@ -20,6 +22,7 @@ export const xAgt: Plugin = async (ctx) => {
   const smithTrigger = createSmithTrigger()
   const memoryStore = new MemoryStore()
   const analytics = new AnalyticsCollector(memoryStore)
+  const rolloverHandler = createRolloverHandler(memoryStore)
   const pendingSmithSessions = new Set<string>()
 
   const taskManager = createTaskManagerHook()
@@ -71,10 +74,24 @@ export const xAgt: Plugin = async (ctx) => {
     "experimental.chat.messages.transform":
       taskManager["experimental.chat.messages.transform"],
 
+    // ── 会话压缩（记忆持久化）──────────────────────
+    "experimental.session.compacting": rolloverHandler,
+
     // ── 系统约束注入 ─────────────────────────────
     "experimental.chat.system.transform": async (input: any, output: any) => {
       // 先注入系统约束
       await systemTransform["experimental.chat.system.transform"](input, output)
+
+      // 注入记忆上下文
+      try {
+        const memoryCtx = await buildMemoryContext(memoryStore)
+        if (memoryCtx.longTermMemory) {
+          output.system = output.system || []
+          output.system.push("\n" + memoryCtx.longTermMemory)
+        }
+      } catch {
+        // 记忆注入失败不影响主流程
+      }
 
       // 注入 Smith 激活指令
       if (input?.sessionID && pendingSmithSessions.has(input.sessionID)) {

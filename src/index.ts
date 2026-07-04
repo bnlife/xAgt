@@ -118,6 +118,17 @@ export const xAgt: Plugin = async (ctx) => {
       // 先注入系统约束
       await systemTransform["experimental.chat.system.transform"](input, output)
 
+      // 强制 Vox 输出结构化思考痕迹（覆盖 Communication 的"直接回答"）
+      output.system = output.system || []
+      output.system.push(
+        "\n## 输出要求\n" +
+        "每次回复必须在内容中显式输出思考过程，格式（不超过 3 行）：\n" +
+        "> 拆解：[一句话说清用户需求]\n" +
+        "> 策略：[选谁 + 怎么派 + 串并行]\n" +
+        "> 风险：[信息足够吗？有无循环风险？]\n" +
+        "然后再输出结论或调度指令。"
+      )
+
       // 注入记忆上下文
       try {
         const memoryCtx = await buildMemoryContext(memoryStore)

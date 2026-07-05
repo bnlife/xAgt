@@ -19,7 +19,7 @@ import { buildMemoryContext } from "./memory/hierarchy"
 import { ToolResultCache } from "./cost/cache"
 import { TaskStatePersistence } from "./hooks/task-state-persistence"
 import { createSmithAgent } from "./agents/smith"
-import { logger } from "./utils/logger"
+import { logger, initLogClient } from "./utils/logger"
 
 // ── Judge 强制审查状态机 ─────────────────────
 // 追踪 Fixer→Judge 流程，确保 Fixer 完成后必须经过 Judge 审查
@@ -28,6 +28,11 @@ const pendingFixerDispatch = new Set<string>()
 
 export const xAgt: Plugin = async (ctx) => {
   logger.info("plugin::init", "plugin_loaded", { cwd: process.cwd(), hasCtx: !!ctx })
+
+  // 注入 OpenCode client 到日志系统（日志会出现在 Ctrl+L 面板）
+  if (ctx.client) {
+    initLogClient(ctx.client)
+  }
 
   const gateway = new ToolGateway()
   const sessionRegistry = new SessionAgentRegistry()

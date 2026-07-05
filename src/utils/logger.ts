@@ -4,12 +4,15 @@
  * 格式: [MM-DD HH:mm:ss][LEVEL] FE::module | key=value | msg=verb
  *
  * 级别过滤: XAGT_LOG 环境变量控制（默认 INFO）
- * 双通道: console（INFO/WARN/ERROR）+ 文件（全部级别）
+ * 双通道: OpenCode client.app.log()（优先）+ 文件（fallback）
  * 降噪: 5s 窗口去重，相同 module+msg 仅首条输出，每 5 条输出一次汇总
  */
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+
+/** OpenCode client 引用，通过 initLogClient() 注入 */
+let _client: any = null
 
 // ── 常量 ──────────────────────────────────────────
 const LOG_FILE = path.join(process.cwd(), '.xagt', 'logs', 'app.log')
@@ -216,6 +219,28 @@ function log(
 
   // 7. 文件输出（全部经过级别过滤的级别）
   writeToFile(output)
+
+  // 8. 如果 OpenCode client 可用，发送到 OpenCode 日志系统
+  if (_client && typeof _client.app?.log === 'function') {
+    const opencodeLevel = level === 'TRACE' ? 'debug' : level.toLowerCase() as 'debug' | 'info' | 'warn' | 'error'
+    _client.app.log({
+      body: {
+        service: 'xagt',
+        level: opencodeLevel,
+        message: `${module} | ${msg || '—'}`,
+        extra: fields ? { module, ...fields } : { module },
+      },
+    }).catch(() => { /* 静默处理，不影响主流程 */ })
+  }
+}
+
+/**
+ * 注入 OpenCode client 引用。
+ * 调用后日志会同时发送到 OpenCode 日志系统（Ctrl+L 面板可见）。
+ * 在插件初始化时由 index.ts 调用，测试环境不调用即可。
+ */
+export function initLogClient(client: any): void {
+  _client = client
 }
 
 // ── 导出接口 ──────────────────────────────────────

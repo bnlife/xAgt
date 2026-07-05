@@ -33,7 +33,7 @@ const pendingFixerDispatch = new Set<string>()
 const judgeRetryMap = new Map<string, { count: number; lastFailReason: string }>()
 
 /** 标记：Fixer 已完成但尚未通过 Judge 审查，用于 system.transform 主动提示 */
-const pendingJudgeReview = new Set<string>()
+let pendingJudgeReview = false
 
 /** 当前任务模式。由 Vox 回复中的标记设定，默认 standard */
 let currentMode: TaskMode = "standard"
@@ -144,17 +144,23 @@ export const xAgt: Plugin = async (ctx) => {
           } else if (!judgeGateMap.has(input.sessionID)) {
             // 首次 Fixer 完成：创建门控入口，确保后续 Judge 审查
             judgeGateMap.set(input.sessionID, { fixerDone: true, fixerAt: Date.now(), judgeDone: false })
+          } else {
+            // Fixer 重跑（Judge 拒绝后 Fixer 再次完成）：重置审查状态
+            const entry = judgeGateMap.get(input.sessionID)
+            if (entry && entry.judgeDone) {
+              judgeGateMap.set(input.sessionID, { fixerDone: true, fixerAt: Date.now(), judgeDone: false })
+            }
           }
         }
 
         // #2: 主动提示标记 — Fixer 完成时设标记，system.transform 据此注入提示
         if (agentName === "fixer" && (output.title?.includes("completed") && !output.title?.includes("failed"))) {
-          pendingJudgeReview.add(input.sessionID)
+          pendingJudgeReview = true
         }
         if (agentName === "judge" && output?.output) {
           const outputText2 = output.output as string
           if (outputText2.includes("通过") && !outputText2.includes("不通过")) {
-            pendingJudgeReview.delete(input.sessionID)
+            pendingJudgeReview = false
           }
         }
 
@@ -336,7 +342,7 @@ export const xAgt: Plugin = async (ctx) => {
       }
 
       // 主动提示：Fixer 待 Judge 审查
-      if (currentMode === "standard" && input?.sessionID && pendingJudgeReview.has(input.sessionID)) {
+      if (currentMode === "standard" && pendingJudgeReview) {
         output.system = output.system || []
         output.system.push(
           "\n## Fixer 已完成 — 请派 @judge 审查\n" +

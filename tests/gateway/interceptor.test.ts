@@ -209,10 +209,10 @@ describe("ToolGateway.check — 拦截", () => {
     expect(gateway.check("lynx", "write").allow).toBe(false)
   })
 
-  it("Lynx 调 bash 应拦截", async () => {
+  it("Lynx 调 bash 应放行（只读命令）", async () => {
     const { ToolGateway } = await import("../../src/gateway/interceptor")
     const gateway = new ToolGateway()
-    expect(gateway.check("lynx", "bash").allow).toBe(false)
+    expect(gateway.check("lynx", "bash").allow).toBe(true)
   })
 
   it("Lynx 调 edit 应拦截", async () => {

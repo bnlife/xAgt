@@ -59,7 +59,7 @@ export const DEFAULT_POLICY: GatewayConfig = {
         skill: "allow",
         write: "deny",
         edit: "deny",
-        bash: "deny",
+        bash: "allow",
         "playwright_browser_click": "allow",
         "playwright_browser_close": "allow",
         "playwright_browser_console_messages": "allow",

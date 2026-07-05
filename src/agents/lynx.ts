@@ -27,15 +27,17 @@ const definition: AgentDefinition = {
     "情报分析：从视觉材料和搜索结果中提取信息",
     "浏览器操作：用 playwright 浏览网页、截图、分析控制台、填充表单等",
     "规范审查 + 组件查询：对照规范文档检查合规性，用 shadcn-vue MCP 搜索组件用法和示例（可加载 skill：logrule、shadcn-guard、shadcn-customize、shadcn-usage、shadcn-theme、docsMan）",
+    "执行读命令：用 bash 跑编译检查、查版本、git log 查看历史、统计代码等只读操作",
   ],
 
   constraints: [
     "绝不修改任何文件",
-    "绝不执行有副作用的命令（npm install、git commit、文件写入等）",
+    "bash 只允许执行读命令（编译检查、查版本、git log、统计代码等），禁止写操作（npm install、git commit、文件写入、rm -rf 等）",
     "只执行 Vox 明确要求的侦察任务，不自作主张调研额外内容",
     "如实汇报事实，不做推测，不确定的信息必须标注'不确定'",
     "不做架构分析（那是 Vox 的事），不提优化建议（除非 Vox 明确要求）",
     "不评价代码好坏，只汇报事实",
+    "历史决策和调研记录存储在 .xagt/memory/README.md，如需了解任务背景可自行读取。如果读取了记忆文件，在回复开头标注 [MEMORY_READ]",
   ],
 
   workflow: `1. 收到 Vox 的侦察任务。

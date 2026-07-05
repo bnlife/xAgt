@@ -65,12 +65,13 @@ describe("Lynx 工具权限", () => {
     }
   })
 
-  it("write/edit/bash 应标记为 deny", async () => {
+  it("write/edit 应标记为 deny，bash 已改为 allow", async () => {
     const { DEFAULT_POLICY } = await import("../../src/gateway/policy")
-    const blocked = ["write", "edit", "bash"]
+    const blocked = ["write", "edit"]
     for (const tool of blocked) {
       expect(DEFAULT_POLICY.agents.lynx.tools[tool], `Lynx 的 ${tool} 应为 deny`).toBe("deny")
     }
+    expect(DEFAULT_POLICY.agents.lynx.tools.bash, "Lynx 的 bash 应为 allow（读命令）").toBe("allow")
   })
 
   it("不应包含 dangerRules", async () => {

@@ -15,13 +15,13 @@ import { AnalyticsCollector } from "./analytics/collector"
 import { MemoryStore } from "./memory/store"
 import { createRolloverHandler } from "./memory/context-rollover"
 import { SessionArchiver } from "./memory/session-archiver"
-import { buildMemoryContext } from "./memory/hierarchy"
 import { ToolResultCache } from "./cost/cache"
 import { TaskStatePersistence } from "./hooks/task-state-persistence"
 import { createSmithAgent } from "./agents/smith"
 import { logger, initLogClient } from "./utils/logger"
 import { parseModeTag, buildHardConstraints, type TaskMode } from "./rules/modes"
 import { MODE_TAG_PREFIX } from "./rules/modes"
+import { DecisionMemory, type DecisionType } from "./memory/decision-memory"
 import { CODE_PATTERNS, CODE_EXEMPTIONS, CODE_BLOCK_MESSAGE } from "./rules/output-rules"
 
 // ── Judge 强制审查状态机 ─────────────────────
@@ -31,6 +31,9 @@ const pendingFixerDispatch = new Set<string>()
 
 /** Judge 审查重试计数，sessionID → { count: number; lastFailReason: string } */
 const judgeRetryMap = new Map<string, { count: number; lastFailReason: string }>()
+
+/** 标记：Fixer 已完成但尚未通过 Judge 审查，用于 system.transform 主动提示 */
+const pendingJudgeReview = new Set<string>()
 
 /** 当前任务模式。由 Vox 回复中的标记设定，默认 standard */
 let currentMode: TaskMode = "standard"
@@ -50,6 +53,7 @@ export const xAgt: Plugin = async (ctx) => {
   const analytics = new AnalyticsCollector(memoryStore)
   const rolloverHandler = createRolloverHandler(memoryStore)
   const sessionArchiver = new SessionArchiver()
+  const decisionMemory = new DecisionMemory(memoryStore)
   const pendingSmithSessions = new Set<string>()
   const taskState = new TaskStatePersistence()
 
@@ -142,6 +146,18 @@ export const xAgt: Plugin = async (ctx) => {
             judgeGateMap.set(input.sessionID, { fixerDone: true, fixerAt: Date.now(), judgeDone: false })
           }
         }
+
+        // #2: 主动提示标记 — Fixer 完成时设标记，system.transform 据此注入提示
+        if (agentName === "fixer" && (output.title?.includes("completed") && !output.title?.includes("failed"))) {
+          pendingJudgeReview.add(input.sessionID)
+        }
+        if (agentName === "judge" && output?.output) {
+          const outputText2 = output.output as string
+          if (outputText2.includes("通过") && !outputText2.includes("不通过")) {
+            pendingJudgeReview.delete(input.sessionID)
+          }
+        }
+
         if (agentName === "judge" && (outputText.includes("通过") || outputText.includes("拒绝"))) {
           const entry = judgeGateMap.get(input.sessionID)
           if (entry) {
@@ -197,6 +213,33 @@ export const xAgt: Plugin = async (ctx) => {
             await taskState.clear()
           }
         }
+
+        // M8: 决策记忆 — 自动采集子代理结果
+        if (agentName === "lynx" && output?.output) {
+          decisionMemory.record({
+            type: "finding",
+            content: (output.output as string).replace(/\n+/g, " ").trim().slice(0, 300),
+            source: "lynx",
+            sessionID: input.sessionID,
+          }).catch(e => logger.error("memory::decision::capture", "lynx_failed", { error: String(e) }, "E1011"))
+        }
+        if (agentName === "judge" && output?.output) {
+          const result = (output.output as string).includes("通过") && !(output.output as string).includes("不通过") ? "通过" : "不通过"
+          decisionMemory.record({
+            type: "review",
+            content: `Judge ${result}：${(output.output as string).replace(/\n+/g, " ").trim().slice(0, 300)}`,
+            source: "judge",
+            sessionID: input.sessionID,
+          }).catch(e => logger.error("memory::decision::capture", "judge_failed", { error: String(e) }, "E1012"))
+        }
+        if (agentName === "fixer" && output?.output) {
+          decisionMemory.record({
+            type: "task",
+            content: `Fixer ${output.title || "completed"}：${(output.output as string).replace(/\n+/g, " ").trim().slice(0, 300)}`,
+            source: "fixer",
+            sessionID: input.sessionID,
+          }).catch(e => logger.error("memory::decision::capture", "fixer_failed", { error: String(e) }, "E1013"))
+        }
       }
       await taskManager["tool.execute.after"](input, output)
     },
@@ -225,23 +268,12 @@ export const xAgt: Plugin = async (ctx) => {
       output.system = output.system || []
       output.system.push(
         "\n## 输出要求\n" +
-        "每次回复必须在内容中显式输出思考过程，格式（不超过 3 行）：\n" +
+        "每次回复必须在内容中显式输出思考过程，格式：\n" +
         "> 拆解：[一句话说清用户需求]\n" +
         "> 策略：[选谁 + 怎么派 + 串并行]\n" +
         "> 风险：[信息足够吗？有无循环风险？]\n" +
         "然后再输出结论或调度指令。"
       )
-
-      // 注入记忆上下文
-      try {
-        const memoryCtx = await buildMemoryContext(memoryStore)
-        if (memoryCtx.longTermMemory) {
-          output.system = output.system || []
-          output.system.push("\n" + memoryCtx.longTermMemory)
-        }
-      } catch {
-        // 记忆注入失败不影响主流程
-      }
 
       // M5: 断点续传 — 检测未完成任务
       try {
@@ -303,6 +335,16 @@ export const xAgt: Plugin = async (ctx) => {
         pendingSmithSessions.delete(input.sessionID)
       }
 
+      // 主动提示：Fixer 待 Judge 审查
+      if (currentMode === "standard" && input?.sessionID && pendingJudgeReview.has(input.sessionID)) {
+        output.system = output.system || []
+        output.system.push(
+          "\n## Fixer 已完成 — 请派 @judge 审查\n" +
+          "Fixer 刚刚完成了代码修改，尚未通过 Judge 审查。\n" +
+          "请先派 @judge 审查修改结果，审查通过后才能继续其他任务。"
+        )
+      }
+
       // 注入最近对话存档摘要
       const recentSummary = await sessionArchiver.getRecentSummary(5)
       if (recentSummary) {
@@ -336,6 +378,24 @@ export const xAgt: Plugin = async (ctx) => {
             if (part.type === "text") {
               part.text = part.text.replace(/<!--XAGT_MODE:(standard|simple|free)-->/g, "")
             }
+          }
+        }
+
+        // 自动采集决策 — 从 Vox 聊天内容中检测决策信号
+        const decisionPatterns: Array<{ type: DecisionType; patterns: RegExp[] }> = [
+          { type: "alignment", patterns: [/用户需要/, /需求是/, /要做的是/, /用户想要/, /目标是为/, /意图是/] },
+          { type: "decision", patterns: [/就按.*来/, /决定了/, /决定用/, /采用/, /用这个方案/, /确认方案/, /拍板/, /就这么办/, /就这么定/, /就这么做/] },
+          { type: "decision", patterns: [/评估决定/, /放行/, /直接过/, /跳过审查/] },
+        ]
+        for (const { type, patterns } of decisionPatterns) {
+          if (patterns.some(p => p.test(text))) {
+            decisionMemory.record({
+              type,
+              content: text.replace(/```[\s\S]*?```/g, "").replace(/\n+/g, " ").trim().slice(0, 200),
+              source: "vox",
+              sessionID: msgSessionID,
+            }).catch(e => logger.error("memory::decision::capture", "vox_failed", { error: String(e) }, "E1010"))
+            break
           }
         }
       }

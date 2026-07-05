@@ -22,7 +22,7 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:unit": "bun test tests/gateway/ tests/hooks/unit.test.ts tests/hooks/smith-trigger.test.ts tests/cost/ tests/plugin-loading.test.ts tests/agent-config.test.ts",
-    "test:integration": "bun test tests/memory/ tests/analytics/ tests/hooks/integration.test.ts tests/hooks/board-injection.test.ts tests/hooks/task-state-persistence.test.ts tests/agents/smith.test.ts",
+    "test:integration": "bun test tests/memory/ tests/analytics/ tests/hooks/board-injection.test.ts tests/hooks/task-state-persistence.test.ts tests/agents/smith.test.ts",
     "test:e2e": "bun test tests/git-sandbox.test.ts tests/runtime-loading.test.ts tests/thinking-mode.test.ts"
   }
 }

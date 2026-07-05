@@ -1,10 +1,6 @@
-import { BackgroundJobBoard } from "../utils/background-job-board"
 import { logger } from "../utils/logger"
 
-const BOARD_SENTINEL = "SENTINEL: background-job-board-v1"
-
 export interface TaskManagerHook {
-  getBoard(): BackgroundJobBoard
   "tool.execute.before": (input: { tool: string; sessionID: string; callID: string }, output: { args: any }) => Promise<void>
   "tool.execute.after": (input: { tool: string; sessionID: string; callID: string; args: any }, output: { title: string; output: string; metadata: any }) => Promise<void>
   "experimental.chat.messages.transform": (input: {}, output: { messages: Array<{ info: { role: string }; parts: Array<{ type: string; text: string }> }> }) => Promise<void>
@@ -12,72 +8,21 @@ export interface TaskManagerHook {
 }
 
 export function createTaskManagerHook(): TaskManagerHook {
-  const board = new BackgroundJobBoard()
-
   return {
-    getBoard: () => board,
-
-    "tool.execute.before": async (input, output) => {
+    "tool.execute.before": async (input, _output) => {
       logger.debug("hook::task::execute_before", "entry", { tool: input.tool, sessionID: input.sessionID })
-      if (input.tool !== "task") return
-      const args = output.args as { subagent_type?: string; prompt?: string }
-      board.launch(input.callID, {
-        agent: args.subagent_type ?? "unknown",
-        prompt: args.prompt ?? "",
-      }, input.sessionID)
     },
 
-    "tool.execute.after": async (input, output) => {
+    "tool.execute.after": async (input, _output) => {
       logger.debug("hook::task::execute_after", "entry", { tool: input.tool, sessionID: input.sessionID })
-      if (input.tool !== "task") return
-      const completed = output.title?.startsWith("Background task completed")
-      const failed = output.title?.startsWith("Background task failed")
-      if (completed) {
-        board.complete(input.callID, output.output)
-      } else if (failed) {
-        board.fail(input.callID, output.output)
-      }
     },
 
-    "experimental.chat.messages.transform": async (_input, output) => {
-      // 注入看板：展示所有活跃任务
-      const active = board.getActive()
-      if (active.length === 0) return
-
-      // 检查最新一条用户消息是否已含 sentinel，避免同一轮重复注入
-      const lastMsg = output.messages[output.messages.length - 1]
-      if (!lastMsg) return
-      for (const part of lastMsg.parts) {
-        if (part.type === "text" && part.text?.includes(BOARD_SENTINEL)) return
-      }
-
-      const summary = active
-        .map((t) => {
-          const state = t.state === "running" ? "running" : "completed"
-          const brief = t.prompt.slice(0, 40)
-          return `- @${t.agent} [${state}]: ${brief}${t.prompt.length > 40 ? "..." : ""}`
-        })
-        .join("\n")
-
-      lastMsg.parts.push({
-        type: "text",
-        text: `## 后台任务看板\n${summary}\n${BOARD_SENTINEL}`,
-      })
-      // 注意：不清除任务，保留 terminal_unreconciled 供后续引用
+    "experimental.chat.messages.transform": async (_input, _output) => {
+      // 后台任务看板已移除
     },
 
-    event: async (input) => {
-      // session idle 或 status 变化时，仅清理该会话的已完成任务
-      if (input.event.type !== "session.idle" && input.event.type !== "session.status") return
-
-      // 提取 sessionID（不同事件来源可能在不同字段）
-      const sessionID = input.event.sessionID ?? input.event.properties?.sessionID ?? ""
-      if (!sessionID) return // 无法确定会话则不清理
-
-      const count = board.reconcileAll(sessionID)
-      if (count > 0) {
-        board.cleanReconciled()
-      }
+    event: async (_input) => {
+      // 后台任务看板已移除
     },
   }
 }

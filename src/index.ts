@@ -20,6 +20,7 @@ import { ToolResultCache } from "./cost/cache"
 import { TaskStatePersistence } from "./hooks/task-state-persistence"
 import { createSmithAgent } from "./agents/smith"
 import { logger, initLogClient } from "./utils/logger"
+import { CODE_PATTERNS, CODE_EXEMPTIONS, CODE_BLOCK_MESSAGE } from "./rules/output-rules"
 
 // ── Judge 强制审查状态机 ─────────────────────
 // 追踪 Fixer→Judge 流程，确保 Fixer 完成后必须经过 Judge 审查
@@ -282,9 +283,9 @@ export const xAgt: Plugin = async (ctx) => {
         .map((p: any) => p.text)
         .join("")
 
-      const hasCodeBlock = /```[\s\S]*```/.test(text)
-      const hasInlineCode = /`[^`]{10,}`/.test(text)
-      const hasTaskCall = /task\s*\(/.test(text)
+      const hasCodeBlock = CODE_PATTERNS.codeBlock.test(text)
+      const hasInlineCode = CODE_PATTERNS.inlineCode.test(text)
+      const hasTaskCall = CODE_EXEMPTIONS.hasTaskCall.test(text)
 
       // 有代码但没 task() → 判定违规
       if ((hasCodeBlock || hasInlineCode) && !hasTaskCall) {
@@ -292,7 +293,7 @@ export const xAgt: Plugin = async (ctx) => {
         output.parts = [
           {
             type: "text",
-            text: `⛔ **自动拦截：违规输出**\n\n你的回复包含了代码片段，但没有使用 \`task()\` 调度子代理。\n\n作为调度总指挥，请不要直接输出代码。请重新生成回复，使用以下方式之一：\n\n- 改代码 → \`task("fixer", "精确指令")\`\n- 查代码 → \`task("lynx", "侦察指令")\`\n- 审代码 → \`task("judge", "审查指令")\``,
+            text: CODE_BLOCK_MESSAGE,
           },
         ]
       }

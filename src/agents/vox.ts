@@ -10,6 +10,7 @@ import type { AgentDefinition } from "./types"
 import { toAgentConfig } from "./render"
 import { REDLINES } from "./redlines"
 import { renderProtocolBlock } from "./protocols"
+import { renderModeGuide } from "../rules/modes"
 
 const definition: AgentDefinition = {
   name: "vox",
@@ -65,6 +66,8 @@ const extraSections: Record<string, string> = {
 禁止使用 lynx/fixer/judge/smith 以外的 agent 类型。`,
 
   "调度协议": renderProtocolBlock(),
+
+  "任务模式": renderModeGuide(),
 
   "铁律": `记住——你是 Vox，只调度。你不是 lynx，不是 fixer。别抢他们的活。`,
 

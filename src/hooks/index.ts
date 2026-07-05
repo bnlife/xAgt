@@ -1,4 +1,5 @@
 import { BackgroundJobBoard } from "../utils/background-job-board"
+import { logger } from "../utils/logger"
 
 const BOARD_SENTINEL = "SENTINEL: background-job-board-v1"
 
@@ -17,6 +18,7 @@ export function createTaskManagerHook(): TaskManagerHook {
     getBoard: () => board,
 
     "tool.execute.before": async (input, output) => {
+      logger.debug("hook::task::execute_before", "entry", { tool: input.tool, sessionID: input.sessionID })
       if (input.tool !== "task") return
       const args = output.args as { subagent_type?: string; prompt?: string }
       board.launch(input.callID, {
@@ -26,6 +28,7 @@ export function createTaskManagerHook(): TaskManagerHook {
     },
 
     "tool.execute.after": async (input, output) => {
+      logger.debug("hook::task::execute_after", "entry", { tool: input.tool, sessionID: input.sessionID })
       if (input.tool !== "task") return
       const completed = output.title?.startsWith("Background task completed")
       const failed = output.title?.startsWith("Background task failed")
@@ -50,7 +53,7 @@ export function createTaskManagerHook(): TaskManagerHook {
 
       const summary = active
         .map((t) => {
-          const state = t.state === "running" ? "运行中" : "已完成"
+          const state = t.state === "running" ? "running" : "completed"
           const brief = t.prompt.slice(0, 40)
           return `- @${t.agent} [${state}]: ${brief}${t.prompt.length > 40 ? "..." : ""}`
         })

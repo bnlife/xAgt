@@ -1,3 +1,5 @@
+import { logger } from "../utils/logger"
+
 /**
  * Smith Trigger — 频率计数器
  *
@@ -27,6 +29,7 @@ export function createSmithTrigger(options?: SmithTriggerOptions): SmithTrigger 
 
   return {
     activate(sessionID: string): void {
+      logger.debug("hook::smith::activate", "entry")
       const current = counters.get(sessionID) ?? 0
       counters.set(sessionID, current + 1)
     },
@@ -35,7 +38,9 @@ export function createSmithTrigger(options?: SmithTriggerOptions): SmithTrigger 
       const current = counters.get(sessionID)
       if (current === undefined) return false
       if (current >= everyNTurns) {
+        logger.info("hook::smith::activate", "triggered", { count: everyNTurns })
         counters.set(sessionID, 0)
+        logger.info("hook::smith::activate", "reset")
         return true
       }
       return false

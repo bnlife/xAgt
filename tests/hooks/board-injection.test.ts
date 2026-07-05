@@ -37,7 +37,7 @@ describe("看板状态注入", () => {
     const messages = [{ info: { role: "user" }, parts: [{ type: "text", text: "你好" }] }]
     await hook["experimental.chat.messages.transform"]!({} as any, { messages: messages as any })
     const lastText = messages[messages.length - 1].parts[messages[messages.length - 1].parts.length - 1].text
-    expect(lastText).toMatch(/已完成/)
+    expect(lastText).toMatch(/completed/)
   })
 
   it("reconciled 后的任务不再注入", async () => {

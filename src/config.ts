@@ -10,7 +10,7 @@
  *   "xAgt": {
  *     "agents": {
  *       "vox": {
- *         "model": "deepseek/deepseek-chat",
+ *         "model": "opencode-go/deepseek-v4-flash",
  *         "reasoning": {
  *           "thinking": { "type": "enabled" },
  *           "reasoning_effort": "max"
@@ -76,27 +76,27 @@ export const DEFAULT_AGENT_REASONING: Record<string, ReasoningConfig> = {
 
 export const DEFAULT_AGENT_CONFIGS: Record<string, AgentConfig> = {
   vox: {
-    model: "deepseek/deepseek-chat",
+    model: "opencode-go/deepseek-v4-flash",
     description: undefined,
     reasoning: DEFAULT_AGENT_REASONING.vox,
   },
   lynx: {
-    model: "deepseek/deepseek-chat",
+    model: "opencode-go/deepseek-v4-flash",
     description: undefined,
     reasoning: DEFAULT_AGENT_REASONING.lynx,
   },
   fixer: {
-    model: "deepseek/deepseek-chat",
+    model: "opencode-go/deepseek-v4-flash",
     description: undefined,
     reasoning: DEFAULT_AGENT_REASONING.fixer,
   },
   judge: {
-    model: "deepseek/deepseek-chat",
+    model: "opencode-go/deepseek-v4-flash",
     description: undefined,
     reasoning: DEFAULT_AGENT_REASONING.judge,
   },
   smith: {
-    model: "deepseek/deepseek-chat",
+    model: "opencode-go/deepseek-v4-flash",
   },
 }
 

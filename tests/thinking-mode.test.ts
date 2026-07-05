@@ -7,6 +7,7 @@
  */
 import { describe, it, expect, beforeAll } from "bun:test"
 import type { Plugin } from "@opencode-ai/plugin"
+import { logger } from "../src/utils/logger"
 
 let xAgt: Plugin
 
@@ -92,10 +93,7 @@ describe("DeepSeek API 思考模式集成测试", () => {
     const data = await response.json() as any
     const message = data.choices?.[0]?.message
 
-    console.log("Vox (max) 响应:", JSON.stringify({
-      reasoning_content: message?.reasoning_content?.slice(0, 100),
-      content: message?.content,
-    }, null, 2))
+    logger.debug("test::thinking", "vox_response", { reasoningLen: message?.reasoning_content?.length, contentLen: message?.content?.length })
 
     expect(response.status).toBe(200)
     expect(message?.reasoning_content).toBeDefined()
@@ -122,10 +120,7 @@ describe("DeepSeek API 思考模式集成测试", () => {
     const data = await response.json() as any
     const message = data.choices?.[0]?.message
 
-    console.log("Fixer (high) 响应:", JSON.stringify({
-      reasoning_content: message?.reasoning_content?.slice(0, 100),
-      content: message?.content?.slice(0, 200),
-    }, null, 2))
+    logger.debug("test::thinking", "fixer_response", { reasoningLen: message?.reasoning_content?.length, contentLen: message?.content?.length })
 
     expect(response.status).toBe(200)
     expect(message?.reasoning_content).toBeDefined()
@@ -151,10 +146,7 @@ describe("DeepSeek API 思考模式集成测试", () => {
     const data = await response.json() as any
     const message = data.choices?.[0]?.message
 
-    console.log("Lynx (disabled) 响应:", JSON.stringify({
-      reasoning_content: message?.reasoning_content,
-      content: message?.content?.slice(0, 200),
-    }, null, 2))
+    logger.debug("test::thinking", "lynx_response", { reasoningLen: message?.reasoning_content?.length, contentLen: message?.content?.length })
 
     expect(response.status).toBe(200)
     // thinking 关闭时 reasoning_content 应为空或 undefined

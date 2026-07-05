@@ -9,6 +9,7 @@ import { execSync } from "child_process"
 import { existsSync, mkdirSync, rmSync } from "fs"
 import { join } from "path"
 import { XAGT_DIR, SANDBOX_DIR } from "./constants"
+import { logger } from "./utils/logger"
 
 export interface SandboxInfo {
   worktreePath: string
@@ -75,7 +76,7 @@ export class SandboxManager {
 
     // 如果 worktree 已存在，先清理
     if (existsSync(worktreePath)) {
-      console.log(`[xAgt] cleanup stale worktree | path=${worktreePath} task=${taskID}`)
+      logger.info("git::sandbox", "cleanup_stale_worktree", { path: worktreePath, task: taskID })
       try {
         this.git(["worktree", "remove", "--force", worktreePath])
       } catch {}

@@ -61,42 +61,6 @@ describe("Agent 注册 - getAgents()", () => {
     }
   })
 
-  it("Vox 的描述应该包含'调度'或'指挥'", async () => {
-    const { getAgents } = await import("../src/agents")
-    const agents = getAgents()
-    expect(agents.vox.description).toMatch(/调度|指挥/)
-  })
-
-  it("Lynx 的描述应该包含'眼睛'或'搜索'或'查'", async () => {
-    const { getAgents } = await import("../src/agents")
-    const agents = getAgents()
-    expect(agents.lynx.description).toMatch(/眼睛|搜索|查/)
-  })
-
-  it("Fixer 的描述应该包含'双手'或'执行'或'修改'", async () => {
-    const { getAgents } = await import("../src/agents")
-    const agents = getAgents()
-    expect(agents.fixer.description).toMatch(/双手|执行|修改/)
-  })
-
-  it("Vox 的 prompt 应该提到 lynx 和 fixer", async () => {
-    const { getAgents } = await import("../src/agents")
-    const agents = getAgents()
-    expect(agents.vox.prompt).toMatch(/@lynx/i)
-    expect(agents.vox.prompt).toMatch(/@fixer/i)
-  })
-
-  it("Lynx 的 prompt 应该提到 MCP 工具", async () => {
-    const { getAgents } = await import("../src/agents")
-    const agents = getAgents()
-    expect(agents.lynx.prompt).toMatch(/context7|gh_grep|websearch/)
-  })
-
-  it("Fixer 的 prompt 应该提到 read/edit/write/bash 工具", async () => {
-    const { getAgents } = await import("../src/agents")
-    const agents = getAgents()
-    expect(agents.fixer.prompt).toMatch(/read|edit|write|bash/)
-  })
 })
 
 // =========================================

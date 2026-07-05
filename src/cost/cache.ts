@@ -1,3 +1,5 @@
+import { logger } from "../utils/logger"
+
 /**
  * Tool Result Cache — 工具调用结果缓存
  *
@@ -42,6 +44,8 @@ class ToolResultCacheImpl {
     const opts = { ...this.defaultOptions, ...options }
     const now = Date.now()
 
+    logger.debug("cost::cache::set", "set", { key, ttl: opts.ttlMs })
+
     // 淘汰：如果已存在，先删
     if (this.store.has(key)) {
       this.store.delete(key)
@@ -53,6 +57,7 @@ class ToolResultCacheImpl {
       const oldest = this.accessOrder.shift()
       if (oldest !== undefined) {
         this.store.delete(oldest)
+        logger.warn("cost::cache::set", "evict", { key: oldest })
       } else {
         break
       }
@@ -68,14 +73,20 @@ class ToolResultCacheImpl {
 
   get<T = any>(key: string): T | undefined {
     const entry = this.store.get(key)
-    if (!entry) return undefined
+    if (!entry) {
+      logger.debug("cost::cache::get", "miss", { key })
+      return undefined
+    }
 
     // 检查 TTL
     if (Date.now() > entry.expiresAt) {
       this.store.delete(key)
       this.accessOrder = this.accessOrder.filter(k => k !== key)
+      logger.debug("cost::cache::get", "miss", { key })
       return undefined
     }
+
+    logger.debug("cost::cache::get", "hit", { key })
 
     // 更新访问顺序（LRU）
     this.accessOrder = this.accessOrder.filter(k => k !== key)

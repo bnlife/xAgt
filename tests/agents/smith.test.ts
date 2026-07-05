@@ -23,22 +23,48 @@ describe("Smith Agent", () => {
     expect(hasAny).toBe(true)
   })
 
-  it("smith 的 prompt 应强调只读不写", async () => {
-    const { getAgents } = await import("../../src/agents")
-    const prompt = getAgents().smith.prompt
-    expect(prompt).toMatch(/只读|不修改|不改文件|dont.*modify|no.*write/i)
-  })
-
-  it("smith 的 prompt 应提到审查 xAgt 源码", async () => {
-    const { getAgents } = await import("../../src/agents")
-    const prompt = getAgents().smith.prompt
-    expect(prompt).toMatch(/xagt|harness|plugin|agent/i)
-  })
-
   it("smith 的 prompt 长度应在 300-2000 字符之间", async () => {
     const { getAgents } = await import("../../src/agents")
     const len = getAgents().smith.prompt.length
     expect(len).toBeGreaterThan(300)
     expect(len).toBeLessThan(2000)
+  })
+
+  it("Smith 的工具权限应禁止写操作", async () => {
+    const { DEFAULT_POLICY } = await import("../../src/gateway/policy")
+    const smithPolicy = DEFAULT_POLICY.agents.smith
+    expect(smithPolicy).toBeDefined()
+    expect(smithPolicy.tools.write).toBe("deny")
+    expect(smithPolicy.tools.edit).toBe("deny")
+    expect(smithPolicy.tools.bash).toBe("deny")
+    // 应有 read 权限
+    expect(smithPolicy.tools.read).toBe("allow")
+  })
+
+  it("AnalyticsCollector getReportForSmith 应返回非空摘要", async () => {
+    const { MemoryStore } = await import("../../src/memory/store")
+    const { AnalyticsCollector } = await import("../../src/analytics/collector")
+    const { mkdtempSync, rmSync } = await import("fs")
+    const { join } = await import("path")
+    const { tmpdir } = await import("os")
+
+    const tempDir = mkdtempSync(join(tmpdir(), "xagt-smith-test-"))
+    try {
+      const store = new MemoryStore(tempDir)
+      const collector = new AnalyticsCollector(store)
+
+      // 插入模拟事件
+      await store.append({
+        type: "lesson",
+        content: JSON.stringify({ type: "judge_rejection", agent: "judge", summary: "test rejection", rule: "test" })
+      })
+
+      const report = await collector.getReportForSmith()
+      expect(report).toBeTruthy()
+      expect(typeof report).toBe("string")
+      expect(report.length).toBeGreaterThan(10)
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true })
+    }
   })
 })

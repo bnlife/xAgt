@@ -5,6 +5,7 @@
  */
 
 import { MemoryStore } from "./store"
+import { logger } from "../utils/logger"
 
 export interface InjectedMemory {
   /** 项目级记忆：架构图、决策日志摘要等 */
@@ -20,6 +21,7 @@ export interface InjectedMemory {
  * @returns 结构化的记忆上下文
  */
 export async function buildMemoryContext(store: MemoryStore): Promise<InjectedMemory> {
+  logger.info("memory::hierarchy::build", "entry", {})
   const projectMemory = await buildProjectMemory()
   const longTermMemory = await buildLongTermMemory(store)
 
@@ -51,5 +53,6 @@ async function buildLongTermMemory(store: MemoryStore): Promise<string> {
     return `${i + 1}. [${typeLabel}] ${r.content}`
   })
 
+  logger.debug("memory::hierarchy::build", "long_term", { count: records.length })
   return `## 历史记忆（最近 ${records.length} 条）\n\n${lines.join("\n")}`
 }

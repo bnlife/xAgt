@@ -7,25 +7,35 @@ import { createTaskManagerHook } from "./hooks"
 import { createSystemTransformHook } from "./hooks/system-transform"
 import { loadXAgtConfig, getReasoningForAgent } from "./config"
 import type { AgentConfig } from "./config"
-import { resolveAgentFromSession } from "./gateway/interceptor"
+import type { AgentName } from "./agents"
+import { SessionAgentRegistry } from "./gateway/session-registry"
 import { ToolGateway } from "./gateway/interceptor"
 import { createSmithTrigger } from "./hooks/smith-trigger"
 import { AnalyticsCollector } from "./analytics/collector"
 import { MemoryStore } from "./memory/store"
 import { createRolloverHandler } from "./memory/context-rollover"
+import { SessionArchiver } from "./memory/session-archiver"
 import { buildMemoryContext } from "./memory/hierarchy"
 import { ToolResultCache } from "./cost/cache"
 import { TaskStatePersistence } from "./hooks/task-state-persistence"
 import { createSmithAgent } from "./agents/smith"
+import { logger } from "./utils/logger"
+
+// ── Judge 强制审查状态机 ─────────────────────
+// 追踪 Fixer→Judge 流程，确保 Fixer 完成后必须经过 Judge 审查
+const judgeGateMap = new Map<string, { fixerDone: boolean; fixerAt: number; judgeDone: boolean }>()
+const pendingFixerDispatch = new Set<string>()
 
 export const xAgt: Plugin = async (ctx) => {
-  console.log("[xAgt] plugin loaded")
+  logger.info("plugin::init", "plugin_loaded", { cwd: process.cwd(), hasCtx: !!ctx })
 
   const gateway = new ToolGateway()
+  const sessionRegistry = new SessionAgentRegistry()
   const smithTrigger = createSmithTrigger()
   const memoryStore = new MemoryStore()
   const analytics = new AnalyticsCollector(memoryStore)
   const rolloverHandler = createRolloverHandler(memoryStore)
+  const sessionArchiver = new SessionArchiver()
   const pendingSmithSessions = new Set<string>()
   const taskState = new TaskStatePersistence()
 
@@ -39,19 +49,54 @@ export const xAgt: Plugin = async (ctx) => {
     // ── 工具拦截器 ──────────────────────────────
     // 在 Vox 调用 read/write/edit/bash 时直接拦截
     "tool.execute.before": async (input: any, output: any) => {
-      const agentName = resolveAgentFromSession(input.sessionID || "")
-      const result = gateway.check(agentName, input.tool, output.args)
+      const agentName = sessionRegistry.resolve(input.sessionID || "")
 
-      if (!result.allow) {
-        output.args = {
-          _blocked: true,
-          _error: `[xAgt] ${result.reason}`,
+      // #1: Judge 强制审查阻断 — Fixer 完成但未 Judge 审查，禁止派其他子代理
+      if (input.tool === "task" && input.sessionID) {
+        const entry = judgeGateMap.get(input.sessionID)
+        if (entry && entry.fixerDone && !entry.judgeDone) {
+          if (Date.now() - entry.fixerAt > 30 * 60 * 1000) {
+            judgeGateMap.delete(input.sessionID)
+          } else {
+            const args = output?.args as any
+            const targetAgent = args?.subagent_type
+            if (targetAgent === "fixer") {
+              pendingFixerDispatch.add(input.sessionID)
+            }
+            if (targetAgent && targetAgent !== "judge") {
+              throw new Error(`[xAgt] judge_required | Fixer 已完成修改但尚未通过 Judge 审查。请先派 @judge 审查，审查通过后才能继续其他任务。`)
+            }
+          }
         }
+      }
+
+      // 非 xAgt agent 且无法解析 agentName → 放行
+      if (!agentName) return
+
+      // 分两步检查：
+      // 1. 不在 xAgt 白名单 → 非 xAgt agent → 拦截（禁止 OpenCode 原生 agent 调用）
+      // 2. 在白名单但没配策略 → 放行无限制（用户没限制就是全放）
+      // 3. 在白名单且有策略 → 按策略执行
+      const XAGT_AGENTS: AgentName[] = ["vox", "lynx", "fixer", "judge", "smith"]
+      if (!(XAGT_AGENTS as string[]).includes(agentName)) {
+        logger.error("gateway::policy", "unknown_agent", { sessionID: input.sessionID, agent: agentName }, "E1001")
+        throw new Error(`[xAgt] unknown_agent | sessionID=${input.sessionID} resolved="${agentName}" | xAgt agents only`)
+      }
+
+      if (!gateway.hasPolicy(agentName)) {
+        // xAgt agent 但没配策略 → 放行，不校验
         return
       }
 
+      const result = gateway.check(agentName, input.tool, output.args)
+
+      if (!result.allow) {
+        logger.error("gateway::policy", "policy_blocked", { agent: agentName, tool: input.tool, reason: result.reason }, "E1002")
+        throw new Error(`[xAgt] ${result.reason}`)
+      }
+
       // M6: 文件修改时清除相关缓存
-      if (result.allow && (input.tool === "edit" || input.tool === "write")) {
+      if (input.tool === "edit" || input.tool === "write") {
         ToolResultCache.invalidateByPrefix("grep:")
         ToolResultCache.invalidateByPrefix("glob:")
       }
@@ -62,8 +107,23 @@ export const xAgt: Plugin = async (ctx) => {
     "tool.execute.after": async (input: any, output: any) => {
       // M7-b: 采集 Judge 拒绝 / Fixer 失败事件
       if (input.tool === "task" && input.sessionID) {
-        const agentName = resolveAgentFromSession(input.sessionID)
+        const agentName = sessionRegistry.resolve(input.sessionID)
         const outputText = output?.output ?? ""
+
+        // #1: Judge 强制审查状态追踪
+        if (agentName === "fixer" && (output.title?.includes("completed") && !output.title?.includes("failed"))) {
+          if (pendingFixerDispatch.has(input.sessionID)) {
+            judgeGateMap.set(input.sessionID, { fixerDone: true, fixerAt: Date.now(), judgeDone: false })
+            pendingFixerDispatch.delete(input.sessionID)
+          }
+        }
+        if (agentName === "judge" && (outputText.includes("通过") || outputText.includes("拒绝"))) {
+          const entry = judgeGateMap.get(input.sessionID)
+          if (entry) {
+            entry.judgeDone = true
+          }
+        }
+
         if (agentName === "judge" && (outputText.includes("不通过") || outputText.includes("拒绝"))) {
           await analytics.recordJudgeRejection(
             outputText.slice(0, 200),
@@ -107,8 +167,9 @@ export const xAgt: Plugin = async (ctx) => {
     },
 
     // ── 消息注入（看板）──────────────────────────
-    "experimental.chat.messages.transform":
-      taskManager["experimental.chat.messages.transform"],
+    "experimental.chat.messages.transform": async (input: any, output: any) => {
+      return taskManager["experimental.chat.messages.transform"](input, output)
+    },
 
     // ── 会话压缩（记忆持久化）──────────────────────
     "experimental.session.compacting": rolloverHandler,
@@ -182,11 +243,25 @@ export const xAgt: Plugin = async (ctx) => {
           "请用户查阅后自行决定是否需要调整提示词或工具配置。"
         )
       }
+
+      // 注入最近对话存档摘要
+      const recentSummary = await sessionArchiver.getRecentSummary(5)
+      if (recentSummary) {
+        output.system = output.system || []
+        output.system.push(`\n## 最近对话存档\n${recentSummary}\nVox 需要时可读取存档文件了解历史上下文。`)
+      }
     },
 
     // ── 输出拦截器 ───────────────────────────────
     // 监听 Vox 回复，若含代码却无 task() 调用，替换为警告
     "chat.message": async (input: any, output: any) => {
+      // 增量存档对话（所有 agent 的消息都存档）
+      const msgSessionID = input?.sessionID || (input as any)?.session || ""
+      const contentParts = output?.parts || output?.message?.content || output
+      if (msgSessionID) {
+        await sessionArchiver.appendMessage(msgSessionID, contentParts)
+      }
+
       if (input.agent !== "vox") return
 
       // Smith 频率计数
@@ -203,12 +278,12 @@ export const xAgt: Plugin = async (ctx) => {
         .join("")
 
       const hasCodeBlock = /```[\s\S]*```/.test(text)
-      const hasInlineCode = /`.+`/.test(text)
+      const hasInlineCode = /`[^`]{10,}`/.test(text)
       const hasTaskCall = /task\s*\(/.test(text)
 
       // 有代码但没 task() → 判定违规
       if ((hasCodeBlock || hasInlineCode) && !hasTaskCall) {
-        console.log(`[xAgt] blocked vox reply with code but no task() | session=${input.sessionID}`)
+        logger.warn("plugin::output", "blocked_code_without_task", { session: input.sessionID })
         output.parts = [
           {
             type: "text",
@@ -243,11 +318,26 @@ export const xAgt: Plugin = async (ctx) => {
       ;(config as any).agent.fixer = merged.disabled.includes("fixer" as any) ? undefined : applyOverrides(fixerAgent, "fixer")
       ;(config as any).agent.judge = merged.disabled.includes("judge" as any) ? undefined : applyOverrides(judgeAgent, "judge")
       ;(config as any).agent.smith = merged.disabled.includes("smith" as any) ? undefined : applyOverrides(smithAgent, "smith")
+
+      // 删除非 xAgt 白名单 agent（如 opencode 内置的 explore/general），防止 Vox 调度到它们
+      const xAgtAgentNames = new Set(["vox", "lynx", "fixer", "judge", "smith"])
+      for (const key of Object.keys((config as any).agent)) {
+        if (!xAgtAgentNames.has(key)) {
+          delete (config as any).agent[key]
+        }
+      }
     },
 
     "chat.params": async (input: any, output: any) => {
       if (!input?.agent) return
       const agentName = input.agent as string
+
+      // 注册 sessionID→agent 映射，供 tool.execute.before/after 使用
+      // 这是识别 primary agent（如 Vox）身份的可靠数据源，因为它的 sessionID 不含 agent 前缀
+      if (input.sessionID) {
+        sessionRegistry.register(input.sessionID, agentName)
+      }
+
       const reasoning = getReasoningForAgent(agentName, resolvedAgentConfigs)
       if (reasoning) {
         output.options = { ...output.options, ...reasoning }

@@ -26,7 +26,7 @@ export interface InterceptorResult {
 export function resolveAgentFromSession(sessionID: string): string {
   if (!sessionID) return ""
   const match = sessionID.toLowerCase().match(/^([a-z]+)/)
-  return match ? match[1] : sessionID.toLowerCase()
+  return match ? match[1] : ""
 }
 
 /**
@@ -35,6 +35,14 @@ export function resolveAgentFromSession(sessionID: string): string {
  */
 export class ToolGateway {
   constructor(private config: GatewayConfig = DEFAULT_POLICY) {}
+
+  /**
+   * 判断某个 Agent 是否有已定义的策略。
+   * 用于拦截器前置检查：如果 agent 不在策略中，应放行而非拦截。
+   */
+  hasPolicy(agentName: string): boolean {
+    return agentName in this.config.agents
+  }
 
   /**
    * 检查某个 Agent 的工具调用是否允许。

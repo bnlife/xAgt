@@ -30,9 +30,10 @@ describe("Vox 工具权限", () => {
     expect(DEFAULT_POLICY.agents.vox.tools.task).toBe("allow")
   })
 
-  it("read/write/edit/bash/grep/glob/apply_diff 应标记为 deny", async () => {
+  it("read 应标记为 allow，write/edit/bash/grep/glob/apply_diff 应标记为 deny", async () => {
     const { DEFAULT_POLICY } = await import("../../src/gateway/policy")
-    const blocked = ["read", "write", "edit", "bash", "grep", "glob", "apply_diff"]
+    expect(DEFAULT_POLICY.agents.vox.tools.read, "Vox 的 read 应为 allow").toBe("allow")
+    const blocked = ["write", "edit", "bash", "grep", "glob", "apply_diff"]
     for (const tool of blocked) {
       expect(DEFAULT_POLICY.agents.vox.tools[tool], `Vox 的 ${tool} 应为 deny`).toBe("deny")
     }
@@ -40,9 +41,9 @@ describe("Vox 工具权限", () => {
 
   it("未显式列出的工具应默认不存在于 tools 中（默认 deny）", async () => {
     const { DEFAULT_POLICY } = await import("../../src/gateway/policy")
-    // Vox 的 tools 应只含上述 8 个工具
+    // Vox 的 tools 应含 task/read/skill/todowrite/write/edit/bash/grep/glob/apply_diff 共 10 个
     const toolCount = Object.keys(DEFAULT_POLICY.agents.vox.tools).length
-    expect(toolCount).toBe(8)
+    expect(toolCount).toBe(10)
   })
 
   it("不应包含 dangerRules", async () => {

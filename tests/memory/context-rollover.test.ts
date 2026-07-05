@@ -60,3 +60,52 @@ describe("createRolloverHandler", () => {
     }
   })
 })
+
+// =========================================
+// classifyMessages：消息分类
+// =========================================
+describe("classifyMessages", () => {
+  it("中文关键词应正确分类消息", async () => {
+    const { classifyMessages } = await import("../../src/memory/context-rollover")
+
+    const messages = [
+      { role: "user", content: "我决定采用方案A来修复这个错误，因为之前的方法报错了" },
+      { role: "assistant", content: "先查文档再改代码，必须注意不要覆盖已有逻辑" },
+      { role: "user", content: "项目需要支持多语言，建议使用i18n" },
+      { role: "assistant", content: "这个问题通过添加缓存解决了" },
+      { role: "user", content: "短" },  // 太短应被跳过
+    ]
+
+    const result = classifyMessages(messages)
+    expect(result.length).toBeGreaterThan(0)
+
+    const types = result.map(r => r.type)
+    expect(types).toContain("decision")
+    expect(types).toContain("pattern")
+  })
+
+  it("英文关键词应正确分类消息", async () => {
+    const { classifyMessages } = await import("../../src/memory/context-rollover")
+
+    const messages = [
+      { role: "user", content: "I decided to use React Query to fix the bug because the old approach failed" },
+      { role: "assistant", content: "first lint then test, avoid modifying the build config" },
+      { role: "user", content: "error occurs when deploying to production" },
+    ]
+
+    const result = classifyMessages(messages)
+    expect(result.length).toBeGreaterThan(0)
+
+    const types = result.map(r => r.type)
+    expect(types).toContain("decision")
+    expect(types).toContain("pattern")
+    expect(types).toContain("lesson")
+  })
+
+  it("空消息或短消息应返回空数组", async () => {
+    const { classifyMessages } = await import("../../src/memory/context-rollover")
+
+    expect(classifyMessages([])).toEqual([])
+    expect(classifyMessages([{ role: "user", content: "hi" }])).toEqual([])
+  })
+})

@@ -40,14 +40,14 @@ describe("resolveAgentFromSession", () => {
     expect(resolveAgentFromSession("fixer")).toBe("fixer")
   })
 
-  it("纯数字 sessionID \"12345\" 应返回 \"12345\"", async () => {
+  it("纯数字 sessionID \"12345\" 应返回 \"\"（无法解析为 agent）", async () => {
     const { resolveAgentFromSession } = await import("../../src/gateway/interceptor")
-    expect(resolveAgentFromSession("12345")).toBe("12345")
+    expect(resolveAgentFromSession("12345")).toBe("")
   })
 
-  it("特殊字符 \"!@#$%\" 应返回 \"!@#$%\"", async () => {
+  it("特殊字符 sessionID 应返回 \"\"（无法解析为 agent）", async () => {
     const { resolveAgentFromSession } = await import("../../src/gateway/interceptor")
-    expect(resolveAgentFromSession("!@#$%")).toBe("!@#$%")
+    expect(resolveAgentFromSession("!@#$%")).toBe("")
   })
 })
 
@@ -172,13 +172,11 @@ describe("ToolGateway.check — 放行", () => {
 // 测试 3：ToolGateway.check — 拦截场景
 // =========================================
 describe("ToolGateway.check — 拦截", () => {
-  it("Vox 调 read 应拦截（含 reason）", async () => {
+  it("Vox 调 read 应放行（policy 已改为 allow）", async () => {
     const { ToolGateway } = await import("../../src/gateway/interceptor")
     const gateway = new ToolGateway()
     const result = gateway.check("vox", "read")
-    expect(result.allow).toBe(false)
-    expect(typeof result.reason).toBe("string")
-    expect(result.reason!.length).toBeGreaterThan(0)
+    expect(result.allow).toBe(true)
   })
 
   it("Vox 调 write 应拦截", async () => {

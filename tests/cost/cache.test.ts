@@ -62,4 +62,51 @@ describe("ToolResultCache", () => {
     expect(typeof stats.oldest).toBe("number")
     expect(typeof stats.newest).toBe("number")
   })
+
+  it("getStats 的 oldest/newest 应反映创建时间", async () => {
+    const { ToolResultCache } = await import("../../src/cost/cache")
+    ToolResultCache.clear()
+
+    ToolResultCache.set("key-a", "a", { maxEntries: 5 })
+    await new Promise(r => setTimeout(r, 5))
+    ToolResultCache.set("key-b", "b", { maxEntries: 5 })
+
+    const stats1 = ToolResultCache.getStats()
+    expect(stats1.size).toBe(2)
+    // newest 应 >= oldest
+    expect(stats1.newest).toBeGreaterThanOrEqual(stats1.oldest)
+
+    // 访问 key-a 使其变为最新
+    ToolResultCache.get("key-a")
+
+    const stats2 = ToolResultCache.getStats()
+    expect(stats2.size).toBe(2)
+    // newest 应保持（基于创建时间）
+    expect(stats2.newest).toBeGreaterThanOrEqual(stats1.newest)
+  })
+
+  it("clear 后 getStats 应返回 size=0", async () => {
+    const { ToolResultCache } = await import("../../src/cost/cache")
+    ToolResultCache.set("x", 1)
+    ToolResultCache.clear()
+    const stats = ToolResultCache.getStats()
+    expect(stats.size).toBe(0)
+  })
+
+  it("自定义 TTL 的缓存条目应正确过期", async () => {
+    const { ToolResultCache } = await import("../../src/cost/cache")
+    ToolResultCache.clear()
+
+    // 设置 2 个条目，不同 TTL
+    ToolResultCache.set("short", "s", { ttlMs: 30 })
+    ToolResultCache.set("long", "l", { ttlMs: 5000 })
+
+    expect(ToolResultCache.get("short")).toBe("s")
+    expect(ToolResultCache.get("long")).toBe("l")
+
+    await new Promise(r => setTimeout(r, 40))
+
+    expect(ToolResultCache.get("short")).toBeUndefined()
+    expect(ToolResultCache.get("long")).toBe("l")  // 未过期
+  })
 })

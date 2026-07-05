@@ -46,4 +46,67 @@ describe("buildMemoryContext", () => {
       rmSync(emptyDir, { recursive: true, force: true })
     }
   })
+
+  it("应按类型正确显示标签", async () => {
+    const { buildMemoryContext } = await import("../../src/memory/hierarchy")
+    const { MemoryStore } = await import("../../src/memory/store")
+    const { mkdtempSync, rmSync } = await import("fs")
+    const { join } = await import("path")
+    const { tmpdir } = await import("os")
+
+    const tempDir = mkdtempSync(join(tmpdir(), "xagt-hierarchy-labels-"))
+    try {
+      const store = new MemoryStore(tempDir)
+      await store.append({ type: "lesson", content: "always lint before commit" })
+      await store.append({ type: "pattern", content: "use async/await for IO" })
+      await store.append({ type: "decision", content: "chose TypeScript over JavaScript" })
+
+      const result = await buildMemoryContext(store)
+      expect(result.longTermMemory).toContain("[Lesson]")
+      expect(result.longTermMemory).toContain("[Pattern]")
+      expect(result.longTermMemory).toContain("[Decision]")
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it("超长记忆应被截断", async () => {
+    const { buildMemoryContext } = await import("../../src/memory/hierarchy")
+    const { MemoryStore } = await import("../../src/memory/store")
+    const { mkdtempSync, rmSync } = await import("fs")
+    const { join } = await import("path")
+    const { tmpdir } = await import("os")
+
+    const tempDir = mkdtempSync(join(tmpdir(), "xagt-hierarchy-long-"))
+    try {
+      const store = new MemoryStore(tempDir)
+      const longContent = "A".repeat(300)
+      await store.append({ type: "lesson", content: longContent })
+      const result = await buildMemoryContext(store)
+      // 输出中不应包含完整 300 字符
+      expect(result.longTermMemory.length).toBeLessThan(longContent.length + 100)
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it("多条同类型记忆应正确聚合", async () => {
+    const { buildMemoryContext } = await import("../../src/memory/hierarchy")
+    const { MemoryStore } = await import("../../src/memory/store")
+    const { mkdtempSync, rmSync } = await import("fs")
+    const { join } = await import("path")
+    const { tmpdir } = await import("os")
+
+    const tempDir = mkdtempSync(join(tmpdir(), "xagt-hierarchy-multi-"))
+    try {
+      const store = new MemoryStore(tempDir)
+      await store.append({ type: "lesson", content: "lesson one" })
+      await store.append({ type: "lesson", content: "lesson two" })
+      const result = await buildMemoryContext(store)
+      expect(result.longTermMemory).toContain("lesson one")
+      expect(result.longTermMemory).toContain("lesson two")
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
 })

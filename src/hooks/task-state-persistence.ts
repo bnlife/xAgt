@@ -12,6 +12,7 @@ import { readFile, writeFile, unlink } from "fs/promises"
 import { existsSync } from "fs"
 import { join } from "path"
 import { XAGT_DIR, TASK_STATE_FILE } from "../constants"
+import { logger } from "../utils/logger"
 
 export interface SandboxRef {
   branchName: string
@@ -65,6 +66,7 @@ export class TaskStatePersistence {
   }
 
   async save(state: TaskState): Promise<void> {
+    logger.info("hook::task::persist", "save", { taskID: state.activeTask?.taskID })
     state.updatedAt = new Date().toISOString()
     state.version = 1
 
@@ -74,21 +76,29 @@ export class TaskStatePersistence {
       await mkdir(dir, { recursive: true })
     }
 
-    await writeFile(this.filePath, JSON.stringify(state, null, 2), "utf-8")
+    try {
+      await writeFile(this.filePath, JSON.stringify(state, null, 2), "utf-8")
+    } catch (err) {
+      logger.error("hook::task::persist", "save_failed", { error: String(err) }, "E1006")
+      throw err
+    }
   }
 
   async load(): Promise<TaskState | null> {
+    logger.debug("hook::task::persist", "load")
     if (!existsSync(this.filePath)) return null
 
     try {
       const content = await readFile(this.filePath, "utf-8")
       return JSON.parse(content) as TaskState
-    } catch {
+    } catch (err) {
+      logger.error("hook::task::persist", "load_failed", { error: String(err) }, "E1007")
       return null
     }
   }
 
   async clear(): Promise<void> {
+    logger.info("hook::task::persist", "clear")
     if (existsSync(this.filePath)) {
       await unlink(this.filePath)
     }

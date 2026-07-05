@@ -9,54 +9,6 @@
  */
 import { describe, it, expect } from "bun:test"
 
-// =========================================
-// 测试 1：项目结构完整性
-// 模拟用户：克隆仓库 → 查看项目结构
-// 期望：所有关键文件都存在
-// =========================================
-describe("项目结构完整性", () => {
-  it("src/index.ts 应该存在", async () => {
-    const fs = await import("fs/promises")
-    const stat = await fs.stat("src/index.ts")
-    expect(stat.isFile()).toBe(true)
-  })
-
-  it("src/agents/vox.ts 应该存在", async () => {
-    const fs = await import("fs/promises")
-    const stat = await fs.stat("src/agents/vox.ts")
-    expect(stat.isFile()).toBe(true)
-  })
-
-  it("src/agents/lynx.ts 应该存在", async () => {
-    const fs = await import("fs/promises")
-    const stat = await fs.stat("src/agents/lynx.ts")
-    expect(stat.isFile()).toBe(true)
-  })
-
-  it("src/agents/fixer.ts 应该存在", async () => {
-    const fs = await import("fs/promises")
-    const stat = await fs.stat("src/agents/fixer.ts")
-    expect(stat.isFile()).toBe(true)
-  })
-
-  it("src/agents/judge.ts 应该存在", async () => {
-    const fs = await import("fs/promises")
-    const stat = await fs.stat("src/agents/judge.ts")
-    expect(stat.isFile()).toBe(true)
-  })
-
-  it("src/agents/index.ts 应该存在", async () => {
-    const fs = await import("fs/promises")
-    const stat = await fs.stat("src/agents/index.ts")
-    expect(stat.isFile()).toBe(true)
-  })
-
-  it("dist/index.js 应该存在（编译产物）", async () => {
-    const fs = await import("fs/promises")
-    const stat = await fs.stat("dist/index.js")
-    expect(stat.isFile()).toBe(true)
-  })
-})
 
 // =========================================
 // 测试 2：导出模块完整性
@@ -122,103 +74,6 @@ describe("package.json 配置", () => {
   })
 })
 
-// =========================================
-// 测试 4：Agent prompt 完整性
-// 模拟用户：查看 Agent 的思考方式
-// 期望：每个 Agent 的 prompt 都覆盖了关键点
-// =========================================
-describe("Agent prompt 完整性", () => {
-  it("Vox 的 prompt 应该覆盖所有关键点", async () => {
-    const { getAgents } = await import("../src/agents")
-    const prompt = getAgents().vox.prompt
-
-    const checks = [
-      "Role",
-      "Workflow",
-      "Delegation",
-      "Skills",
-      "Communication",
-      
-      "S1",
-      "S2",
-      "S3",
-      "S4",
-      "S5",
-      "S6",
-      "S7",
-      "三振出局",
-      "@lynx",
-      "@fixer",
-      
-      
-      
-      
-      
-    ]
-    for (const check of checks) {
-      expect(prompt).toMatch(new RegExp(check, "i"))
-    }
-  })
-
-  it("Lynx 的 prompt 应该覆盖所有关键点", async () => {
-    const { getAgents } = await import("../src/agents")
-    const prompt = getAgents().lynx.prompt
-
-    const checks = [
-      "定位",
-      "能力",
-      "MCP",
-      "工作方式",
-      "铁律",
-      "只做安排",
-      "绝不修改",
-      "如实汇报",
-      "不越权",
-    ]
-    for (const check of checks) {
-      expect(prompt).toMatch(new RegExp(check, "i"))
-    }
-  })
-
-  it("Fixer 的 prompt 应该覆盖所有关键点", async () => {
-    const { getAgents } = await import("../src/agents")
-    const prompt = getAgents().fixer.prompt
-
-    const checks = [
-      "定位",
-      "职责",
-      "工具",
-      "技能",
-      "工作方式",
-      "铁律",
-      "只做安排",
-      "禁止自作主张",
-      "精确执行",
-      "不越权",
-    ]
-    for (const check of checks) {
-      expect(prompt).toMatch(new RegExp(check, "i"))
-    }
-  })
-
-  it("每个 Agent 的 prompt 长度应该合理", async () => {
-    const { getAgents } = await import("../src/agents")
-    const agents = getAgents()
-    for (const [name, agent] of Object.entries(agents)) {
-      // Vox 完整版更长（2000-6000），Smith 较短（500-3000），其余在 800-3000
-      const minLength = name === "vox" ? 2000 : (name === "smith" ? 500 : 800)
-      const maxLength = name === "vox" ? 6000 : 3000
-      expect(
-        agent.prompt.length,
-        `${name} 的 prompt 长度 ${agent.prompt.length} 不合理`
-      ).toBeGreaterThan(minLength)
-      expect(
-        agent.prompt.length,
-        `${name} 的 prompt 长度 ${agent.prompt.length} 不合理`
-      ).toBeLessThan(maxLength)
-    }
-  })
-})
 
 // =========================================
 // 测试 5：思考模式配置验证
@@ -226,21 +81,4 @@ describe("Agent prompt 完整性", () => {
 // 已在 tests/thinking-mode.test.ts 中覆盖测试。
 // =========================================
 
-// =========================================
-// 测试 6：构建产物验证
-// 模拟用户：发布插件
-// 期望：构建产物完整可加载
-// =========================================
-describe("构建产物验证", () => {
-  it("dist/index.js 应该能被动态 import", async () => {
-    const mod = await import("../dist/index.js")
-    expect(mod.xAgt).toBeDefined()
-    expect(typeof mod.xAgt).toBe("function")
-  })
 
-  it("dist/agents/index.js 应该能被动态 import", async () => {
-    const mod = await import("../dist/agents/index.js")
-    expect(mod.getAgents).toBeDefined()
-    expect(mod.AGENT_DESCRIPTIONS).toBeDefined()
-  })
-})

@@ -9,6 +9,7 @@ import { readFile, mkdir, writeFile } from "fs/promises"
 import { existsSync } from "fs"
 import { join, dirname } from "path"
 import { XAGT_DIR, MEMORY_FILE } from "../constants"
+import { logger } from "../utils/logger"
 
 export type MemoryType = "lesson" | "pattern" | "decision"
 
@@ -99,11 +100,15 @@ export class MemoryStore {
       // 按时间倒序，保留最新的 MAX_RECORDS 条
       records.sort((a, b) => b.timestamp.localeCompare(a.timestamp))
       const kept = records.slice(0, MemoryStore.MAX_RECORDS)
+      if (records.length > MemoryStore.MAX_RECORDS) {
+        logger.warn("memory::store::append", "trimmed", { count: records.length - MemoryStore.MAX_RECORDS })
+      }
 
       // 写回文件（按时间升序，保持可读性）
       kept.sort((a, b) => a.timestamp.localeCompare(b.timestamp))
       const lines = kept.map(r => JSON.stringify(r)).join("\n") + "\n"
       await writeFile(this.filePath, lines, "utf-8")
+      logger.debug("memory::store::append", "appended", { type: record.type })
     } finally {
       release?.()
     }
@@ -143,6 +148,7 @@ export class MemoryStore {
    */
   async rollover(maxRecords?: number): Promise<number> {
     const max = maxRecords ?? MemoryStore.MAX_RECORDS
+    logger.info("memory::store::rollover", "rollover", { count: max })
     const records = await this.readAll()
 
     if (records.length <= max) return 0
@@ -192,11 +198,12 @@ export class MemoryStore {
         if (parsed && parsed.type && parsed.timestamp && parsed.content) {
           records.push(parsed as MemoryRecord)
         }
-      } catch {
-        // 跳过损坏的行
+      } catch (e) {
+        logger.error("memory::store::readAll", "parse_failed", { error: String(e) }, "E1003")
       }
     }
 
+    logger.debug("memory::store::readAll", "queried", { count: records.length })
     return records
   }
 

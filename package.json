@@ -19,6 +19,10 @@
     "build": "tsc -p tsconfig.json",
     "deploy": "powershell -Command \"Copy-Item -Path 'dist' -Destination 'C:\\Users\\叙拉古的城主\\.config\\opencode\\plugins\\xAgt' -Recurse -Force\"",
     "prepublishOnly": "npm run build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "test:unit": "bun test tests/gateway/ tests/hooks/unit.test.ts tests/hooks/smith-trigger.test.ts tests/cost/ tests/plugin-loading.test.ts tests/agent-config.test.ts",
+    "test:integration": "bun test tests/memory/ tests/analytics/ tests/hooks/integration.test.ts tests/hooks/board-injection.test.ts tests/hooks/task-state-persistence.test.ts tests/agents/smith.test.ts",
+    "test:e2e": "bun test tests/git-sandbox.test.ts tests/runtime-loading.test.ts tests/thinking-mode.test.ts"
   }
 }

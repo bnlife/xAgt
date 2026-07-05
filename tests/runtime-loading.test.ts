@@ -7,6 +7,9 @@
  */
 import { describe, it, expect, beforeAll } from "bun:test"
 
+// 仅本地开发环境运行，CI 和其他机器自动跳过
+const SKIP_RUNTIME_TEST = !process.env.OPENCODE_EXE && !process.env.CI
+
 const OPENCODE_EXE = process.env.OPENCODE_EXE || "C:\\Users\\叙拉古的城主\\AppData\\Roaming\\npm\\node_modules\\opencode-ai\\bin\\opencode.exe"
 const RUN_TIMEOUT = 30000
 
@@ -37,6 +40,11 @@ async function opencodeRun(args: string[], cwd?: string, timeoutMs = RUN_TIMEOUT
 }
 
 describe("xAgt 插件 E2E 加载验证", () => {
+  if (SKIP_RUNTIME_TEST) {
+    it.skip("本地运行时测试（当前环境不可用）", () => {})
+    return
+  }
+
   let logs: { stdout: string; exitCode: number | null }
 
   beforeAll(async () => {
@@ -47,8 +55,8 @@ describe("xAgt 插件 E2E 加载验证", () => {
     expect(logs).not.toBeNull()
   })
 
-  it("stdout 日志应该包含 [xAgt] 插件已加载", () => {
+  it("stdout 日志应该包含 EXT::plugin::init 格式", () => {
     // 验证插件被 OpenCode 成功加载
-    expect(logs.stdout).toMatch(/\[xAgt\]/)
+    expect(logs.stdout).toMatch(/EXT::plugin::init/)
   })
 })

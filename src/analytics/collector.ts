@@ -7,6 +7,7 @@
 
 import { MemoryStore } from "../memory/store"
 import type { AnalyticsEvent, AnalyticsEventType, AnalyticsStats, RejectionReason } from "./types"
+import { logger } from "../utils/logger"
 
 export class AnalyticsCollector {
   constructor(private store: MemoryStore) {}
@@ -15,6 +16,7 @@ export class AnalyticsCollector {
    * 记录 Judge 拒绝事件。
    */
   async recordJudgeRejection(summary: string, rule?: string, tags?: Record<string, string>): Promise<void> {
+    logger.info("analytics::collector::rejection", "recorded", { summary, rule, tags })
     const event: Omit<AnalyticsEvent, "timestamp"> = {
       type: "judge_rejection",
       agent: "judge",
@@ -33,6 +35,7 @@ export class AnalyticsCollector {
    * 记录 Fixer 失败事件。
    */
   async recordFixerFailure(summary: string, errorType?: string, tags?: Record<string, string>): Promise<void> {
+    logger.info("analytics::collector::failure", "recorded", { summary, errorType, tags })
     const event: Omit<AnalyticsEvent, "timestamp"> = {
       type: "fixer_failure",
       agent: "fixer",
@@ -51,7 +54,7 @@ export class AnalyticsCollector {
    * 解析 MemoryStore 中编码为 JSON 的 analytics 事件。
    */
   async query(options?: { type?: AnalyticsEventType; limit?: number }): Promise<AnalyticsEvent[]> {
-    const records = await this.store.query({ limit: options?.limit ?? 100 })
+    const records = await this.store.query({ limit: Math.max(options?.limit ?? 100, 200) })
     const events: AnalyticsEvent[] = []
     for (const r of records) {
       try {
@@ -102,6 +105,7 @@ export class AnalyticsCollector {
    * 生成给 Smith 的结构化分析摘要。
    */
   async getReportForSmith(): Promise<string> {
+    logger.debug("analytics::collector::report", "smith")
     const stats = await this.getStats()
     const events = await this.query({ limit: 50 })
 

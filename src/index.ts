@@ -95,18 +95,10 @@ export const xAgt: Plugin = async (ctx) => {
         }
       }
 
-      // 非 xAgt agent 且无法解析 agentName → 放行
+      // 非 xAgt agent → 放行（用 OpenCode 原生 agent，不做限制）
       if (!agentName) return
-
-      // 分两步检查：
-      // 1. 不在 xAgt 白名单 → 非 xAgt agent → 拦截（禁止 OpenCode 原生 agent 调用）
-      // 2. 在白名单但没配策略 → 放行无限制（用户没限制就是全放）
-      // 3. 在白名单且有策略 → 按策略执行
       const XAGT_AGENTS: AgentName[] = ["vox", "lynx", "fixer", "judge", "smith"]
-      if (!(XAGT_AGENTS as string[]).includes(agentName)) {
-        logger.error("gateway::policy", "unknown_agent", { sessionID: input.sessionID, agent: agentName }, "E1001")
-        throw new Error(`[xAgt] unknown_agent | sessionID=${input.sessionID} resolved="${agentName}" | xAgt agents only`)
-      }
+      if (!(XAGT_AGENTS as string[]).includes(agentName)) return
 
       if (!gateway.hasPolicy(agentName)) {
         // xAgt agent 但没配策略 → 放行，不校验
@@ -463,13 +455,6 @@ export const xAgt: Plugin = async (ctx) => {
       ;(config as any).agent.judge = merged.disabled.includes("judge" as any) ? undefined : applyOverrides(judgeAgent, "judge")
       ;(config as any).agent.smith = merged.disabled.includes("smith" as any) ? undefined : applyOverrides(smithAgent, "smith")
 
-      // 删除非 xAgt 白名单 agent（如 opencode 内置的 explore/general），防止 Vox 调度到它们
-      const xAgtAgentNames = new Set(["vox", "lynx", "fixer", "judge", "smith"])
-      for (const key of Object.keys((config as any).agent)) {
-        if (!xAgtAgentNames.has(key)) {
-          delete (config as any).agent[key]
-        }
-      }
     },
 
     "chat.params": async (input: any, output: any) => {
@@ -479,7 +464,15 @@ export const xAgt: Plugin = async (ctx) => {
       // 注册 sessionID→agent 映射，供 tool.execute.before/after 使用
       // 这是识别 primary agent（如 Vox）身份的可靠数据源，因为它的 sessionID 不含 agent 前缀
       if (input.sessionID) {
-        sessionRegistry.register(input.sessionID, agentName)
+        const XAGT_AGENTS: AgentName[] = ["vox", "lynx", "fixer", "judge", "smith"]
+        if ((XAGT_AGENTS as string[]).includes(agentName)) {
+          // xAgt agent → 注册映射，供 gateway 拦截使用
+          sessionRegistry.register(input.sessionID, agentName)
+        } else {
+          // 非 xAgt agent（如 OpenCode 官方内置的 build、plan 等）
+          // → 清除映射，避免污染 sessionRegistry 导致它们被误识别为 xAgt agent
+          sessionRegistry.clearSession(input.sessionID)
+        }
       }
 
       const reasoning = getReasoningForAgent(agentName, resolvedAgentConfigs)

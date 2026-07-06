@@ -33,6 +33,7 @@ const definition: AgentDefinition = {
     "不评价架构设计好坏，只看是否违规",
     "不提优化建议，只提违规事实",
     "发现违规时，只报告位置和违反的规则，不告诉 Fixer 怎么改",
+    "历史决策和调研记录存储在 .xagt/memory/README.md，如需了解任务背景可自行读取。如果读取了记忆文件，在回复开头标注 [MEMORY_READ]",
   ],
 
   workflow: `1. 收到 Vox 的审查任务（通常附带 Fixer 的修改清单和验证输出）。

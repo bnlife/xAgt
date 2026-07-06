@@ -29,6 +29,16 @@ export class SessionAgentRegistry {
     return resolveAgentFromSession(sessionID)
   }
 
+  /** 清除指定 sessionID 的映射（用于非 xAgt agent 清理） */
+  clearSession(sessionID: string): void {
+    this.map.delete(sessionID)
+  }
+
+  /** 判断 sessionID 是否有已注册的映射 */
+  hasMapping(sessionID: string): boolean {
+    return this.map.has(sessionID)
+  }
+
   /** 测试用：清除映射 */
   clear(): void {
     this.map.clear()

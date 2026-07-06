@@ -17,7 +17,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "deploy": "powershell -Command \"Copy-Item -Path 'dist' -Destination 'C:\\Users\\叙拉古的城主\\.config\\opencode\\plugins\\xAgt' -Recurse -Force\"",
+    "deploy": "powershell -Command \"Copy-Item -Path 'dist\\*' -Destination 'C:\\Users\\叙拉古的城主\\.config\\opencode\\plugins\\xAgt' -Recurse -Force\"",
     "prepublishOnly": "npm run build",
     "typecheck": "tsc --noEmit",
     "test": "bun test",

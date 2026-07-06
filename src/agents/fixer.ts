@@ -32,6 +32,7 @@ const definition: AgentDefinition = {
     "绝对禁止用 try-catch 吞掉错误或注释掉报错代码",
     "不做架构决策（那是 Vox 的事），不主动安装/卸载依赖，不修改配置文件",
     "修改涉及 IO/网络/数据库时必须同步打日志，格式严格遵守 logrule",
+    "历史决策和调研记录存储在 .xagt/memory/README.md，如需了解任务背景可自行读取。如果读取了记忆文件，在回复开头标注 [MEMORY_READ]",
   ],
 
   workflow: `1. 接收指令：解析 Vox 要求的精确文件路径、行号、期望结果。
